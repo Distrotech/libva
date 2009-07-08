@@ -118,6 +118,7 @@ AC_SUBST(LIBVA_DISPLAY)
 AC_OUTPUT([
 	Makefile
 	src/Makefile
+	src/va_version.h
 	src/x11/Makefile
 	dummy_drv_video/Makefile
 	i965_drv_video/Makefile

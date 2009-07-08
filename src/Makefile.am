@@ -41,18 +41,15 @@ libva_x11_la_LIBADD  = $(libvacorelib) x11/libva_x11.la $(LIBVA_LIBS) $(X11_LIBS
 libva_x11_la_LDFLAGS = $(LDADD)
 libva_x11_la_DEPENDENCIES = $(libvacorelib)
 
-nodist_libva_la_SOURCES = va_version.h
-BUILT_SOURCES = va_version.h
-
-CLEANFILES = va_version.h
-
-va_version.h: Makefile
-	echo "#define VA_BUILD_DATE \"$(shell date +'%Y%m%d') $(shell date +'1%H%M%S') \"" > va_version.h
-	echo "#define VA_BUILD_GIT  \"($(shell git log  | head -n1 | cut -f2 -d' ')) \" "    >> va_version.h
-
 SUBDIRS = x11
 
 libva_la_SOURCES = va.c
 
 libvaincludedir = ${includedir}/va
-libvainclude_HEADERS = va.h va_backend.h
+libvainclude_HEADERS = va.h va_backend.h va_version.h
+
+DISTCLEANFILES = \
+	va_version.h
+
+EXTRA_DIST = \
+	va_version.h.in
