@@ -762,7 +762,7 @@ typedef struct _VAPictureParameterBufferVC1
     unsigned char luma_shift;		/* PICTURE_LAYER::LUMSHIFT */
     union {
         struct {
-            unsigned int picture_type		: 2; /* PICTURE_LAYER::PTYPE */
+            unsigned int picture_type		: 3; /* PICTURE_LAYER::PTYPE */
             unsigned int frame_coding_mode	: 3; /* PICTURE_LAYER::FCM */
             unsigned int top_field_first	: 1; /* PICTURE_LAYER::TFF */
             unsigned int is_first_field		: 1; /* set to 1 if it is the first field */
