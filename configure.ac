@@ -96,7 +96,7 @@ PKG_CHECK_MODULES([XEXT],[xext])
 PKG_CHECK_MODULES([XFIXES], [xfixes])
 PKG_CHECK_MODULES([DRM], [libdrm])
 
-AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
+PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.0], [gen4asm=yes], [gen4asm=no])
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
 # Check for libdrm >= 2.4 (needed for i965_drv_video.so)
