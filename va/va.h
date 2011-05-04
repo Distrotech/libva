@@ -61,6 +61,7 @@
  *                                        screen relative rather than source video relative.
  * rev 0.32.0 (01/13/2011 Xiang Haihao) - Add profile into VAPictureParameterBufferVC1
  *                                        update VAAPI to 0.32.0
+ * rev 0.32.1 (05/04/2011)              - Linux VA encoding API extension proposal
  *
  * Acknowledgements:
  *  Some concepts borrowed from XvMC and XvImage.
@@ -519,7 +520,22 @@ typedef enum
     VAEncH264VUIBufferType		= 25,
     VAEncH264SEIBufferType		= 26,
     VAEncMiscParameterBufferType	= 27,
-    VABufferTypeMax                     = 0xff
+
+    VAEncSequenceParameterBufferH264Ext = 28,
+    VAEncPictureParameterBufferH264Ext  = 29,
+    VAEncSliceParameterBufferH264Ext    = 30,
+    VAEncDecRefPicMarkingBufferH264     = 31,
+
+    /* New buffer types:
+     *   Buffers contain NAL units packed by application
+     *   Driver only needs to put them to bitstream buffer "as is"
+     *   Header packing on host simplifies driver development and allows 
+     *   to implement new features and fix/work-around wide range of issues without changing driver
+     */
+    VAEncPackedSequenceParameterBufferType  = 32, /* byte-buffer with SPS(+VUI) header */
+    VAEncPackedPictureParameterBufferType   = 33, /* byte-buffer with PPS header */
+    VAEncPackedSliceParameterBufferType	    = 34, /* VAEncPackedSliceHeaderBufferH264 */
+    VABufferTypeMax                         = 0xff
 } VABufferType;
 
 typedef enum
@@ -1181,6 +1197,51 @@ typedef struct _VAEncSliceParameterBuffer
     } slice_flags;
 } VAEncSliceParameterBuffer;
 
+typedef struct _VAEncSliceParameterBufferH264Ext
+{
+    unsigned int   start_row_number;	            /* starting MB row number for this slice */
+    unsigned int   slice_height;	                /* slice height measured in MB */
+    unsigned char  pic_parameter_set_id;            /* (0..255) */
+    unsigned char  slice_type;                      /* (0..2, 5..7) */
+    unsigned char  direct_spatial_mv_pred_flag;
+    unsigned char  num_ref_idx_l0_active_minus1;    /* (0..31) */
+    unsigned char  num_ref_idx_l1_active_minus1;    /* (0..31) */
+    unsigned char  cabac_init_idc;                  /* (0..2) */
+    signed char    slice_qp_delta;
+    unsigned char  disable_deblocking_filter_idc;   /* (0..2) */
+    signed char    slice_alpha_c0_offset_div2;
+    signed char    slice_beta_offset_div2;
+    unsigned short idr_pic_id;                      /* (0..65535) */
+
+    VAPictureH264  RefPicList0[32];
+    VAPictureH264  RefPicList1[32];
+
+    /* ref_pic_list_modification() */
+    unsigned char  ref_pic_list_modification_flag_l0;
+    unsigned char  ref_pic_list_modification_flag_l1;
+    unsigned char  modification_of_pic_nums_idc_l0[32];
+    unsigned char  modification_of_pic_nums_idc_l1[32];
+    unsigned int   value_l0[32];
+    unsigned int   value_l1[32];
+
+    // weights
+    unsigned char  luma_log2_weight_denom;
+    unsigned char  chroma_log2_weight_denom;
+    unsigned char  luma_weight_l0_flag;
+    signed short   luma_weight_l0[32];
+    signed short   luma_offset_l0[32];
+    unsigned char  chroma_weight_l0_flag;
+    signed short   chroma_weight_l0[32][2];
+    signed short   chroma_offset_l0[32][2];
+    unsigned char  luma_weight_l1_flag;
+    signed short   luma_weight_l1[32];
+    signed short   luma_offset_l1[32];
+    unsigned char  chroma_weight_l1_flag;
+    signed short   chroma_weight_l1[32][2];
+    signed short   chroma_offset_l1[32][2];
+
+} VAEncSliceParameterBufferH264Ext;
+
 /****************************
  * H.264 specific encode data structures
  ****************************/
@@ -1202,6 +1263,102 @@ typedef struct _VAEncSequenceParameterBufferH264
     unsigned char vui_flag;
 } VAEncSequenceParameterBufferH264;
 
+typedef struct _VAEncSequenceParameterBufferH264Ext
+{
+    unsigned char seq_parameter_set_id;
+    unsigned char profile_idc;
+    unsigned char level_idc;
+    unsigned int  intra_period;
+    unsigned int  ip_period;
+    unsigned int  max_num_ref_frames;
+    unsigned int  picture_width_in_mbs;
+    unsigned int  picture_height_in_mbs;
+    unsigned char frame_mbs_only_flag;          /* for interlace */
+    unsigned char target_usage;                 /* quality/performance control (1..7) */
+
+    /* bitrate control parameters*/
+    unsigned char rate_control_method;          /* cbr/vbr/constqp/others */
+    unsigned int  bits_per_second;              /* target bitrate */
+    unsigned int  max_bits_per_second;          /* for vbr */
+    unsigned int  min_bits_per_second;          /* brc uses this information */
+    unsigned int  initial_hrd_buffer_fullness;  /* in bits, brc uses it to guarantee hrd conformance */
+    unsigned int  hrd_buffer_size;              /* in bits, brc uses it to guarantee hrd conformance */
+    unsigned int  time_scale;
+    unsigned int  num_units_in_tick;            /* fps = time_scale / (2 * num_units_in_tick) */
+
+    /* cropping, needed for 1080p */
+    unsigned char frame_cropping_flag;
+    unsigned int  frame_crop_left_offset;
+    unsigned int  frame_crop_right_offset;
+    unsigned int  frame_crop_top_offset;
+    unsigned int  frame_crop_bottom_offset;
+
+    unsigned char pic_order_cnt_type;           /* (0..2) see avc 7.3.2.1.1 */
+    unsigned char direct_8x8_inference_flag;    /* see avc 7.3.2.1.1 */
+    
+    unsigned char log2_max_frame_num_minus4;            /* (0..12) see avc 7.3.2.1.1 */
+    unsigned char log2_max_pic_order_cnt_lsb_minus4;    /* for pic_order_cnt = 0 */
+
+    unsigned char vui_flag;
+
+} VAEncSequenceParameterBufferH264Ext;
+
+/* 
+ * if packed-buffers are adopted
+ * vui_paramters() will be generated by host application as a part of sps header
+ * then entire vui structure can be removed from interface
+ */
+typedef struct _VAEncH264VUIBufferH264
+{
+    unsigned int   aspect_ratio_info_present_flag          : 1;
+    unsigned int   overscan_info_present_flag              : 1;
+    unsigned int   overscan_appropriate_flag               : 1;
+    unsigned int   video_signal_type_present_flag          : 1;
+    unsigned int   video_full_range_flag                   : 1;
+    unsigned int   colour_description_present_flag         : 1;
+    unsigned int   chroma_loc_info_present_flag            : 1;
+    unsigned int   timing_info_present_flag                : 1;
+    unsigned int   fixed_frame_rate_flag                   : 1;
+    unsigned int   nal_hrd_parameters_present_flag         : 1;
+    unsigned int   vcl_hrd_parameters_present_flag         : 1;
+    unsigned int   low_delay_hrd_flag                      : 1;
+    unsigned int   pic_struct_present_flag                 : 1;
+    unsigned int   bitstream_restriction_flag              : 1;
+    unsigned int   motion_vectors_over_pic_boundaries_flag : 1;
+    unsigned int   				     	                   : 17;
+
+    unsigned short sar_width;
+	unsigned short sar_height;
+	unsigned char  aspect_ratio_idc;
+	unsigned char  video_format;
+	unsigned char  colour_primaries;
+	unsigned char  transfer_characteristics;
+	unsigned char  matrix_coefficients;
+	unsigned char  chroma_sample_loc_type_top_field;
+	unsigned char  chroma_sample_loc_type_bottom_field;
+	unsigned char  max_bytes_per_pic_denom;
+	unsigned char  max_bits_per_mb_denom;
+	unsigned char  log2_max_mv_length_horizontal;
+	unsigned char  log2_max_mv_length_vertical;
+	unsigned char  num_reorder_frames;
+	unsigned int   num_units_in_tick;
+	unsigned int   time_scale;
+	unsigned char  max_dec_frame_buffering;
+
+	// HRD parameters
+	unsigned char  cpb_cnt_minus1
+	unsigned char  bit_rate_scale;
+	unsigned char  cpb_size_scale;
+	unsigned int   bit_rate_value_minus1[32];
+	unsigned int   cpb_size_value_minus1[32];
+	unsigned int   cbr_flag; // bit 0 represent SchedSelIdx 0 and so on
+	unsigned char  initial_cpb_removal_delay_length_minus1;
+	unsigned char  cpb_removal_delay_length_minus1;
+	unsigned char  dpb_output_delay_length_minus1;
+	unsigned char  time_offset_length;
+
+} VAEncH264VUIBufferH264;
+
 #define H264_LAST_PICTURE_EOSEQ     0x01 /* the last picture in the sequence */
 #define H264_LAST_PICTURE_EOSTREAM  0x02 /* the last picture in the stream */
 typedef struct _VAEncPictureParameterBufferH264
@@ -1213,6 +1370,60 @@ typedef struct _VAEncPictureParameterBufferH264
     unsigned short picture_height;
     unsigned char last_picture;
 } VAEncPictureParameterBufferH264;
+
+typedef struct _VAEncPictureParameterBufferH264Ext
+{
+    VAPictureH264  CurrPic;
+    VAPictureH264  ReferenceFrames[16];             /* DPB */
+    VABufferID     CodedBuf;
+
+    unsigned char  seq_parameter_set_id;            /* (0..31) */
+    unsigned char  pic_parameter_set_id;            /* (0..255) )*/
+
+    unsigned char  last_picture;                    /* for bd-rom compliance */
+
+    unsigned short frame_num;                       /* (0..65535) */
+    unsigned char  coding_type;                     /* for convenience */
+
+    unsigned char  pic_init_qp;                     /* (0..51) for const qp */
+    unsigned char  num_ref_idx_l0_active_minus1;    /* (0..31) */
+    unsigned char  num_ref_idx_l1_active_minus1;    /* (0..31) */
+
+    union
+    {
+        struct
+        {
+            unsigned int idr_pic_flag             : 1;
+            unsigned int reference_pic_flag       : 1;  /* nal_ref_idc != 0 */
+            unsigned int entropy_coding_mode_flag : 1;  /* CAVLC/CABAC */
+            unsigned int weighted_bipred_idc      : 2;  /* (0..2) */
+            unsigned int transform_8x8_mode_flag  : 1;
+        } bits;
+
+        unsigned int value;
+    } pic_fields;
+
+} VAEncPictureParameterBufferH264Ext;
+
+typedef struct VAEncH264DecRefPicMarkingBuffer
+{
+    unsigned char  no_output_of_prior_pics_flag;
+    unsigned char  long_term_reference_flag;
+    unsigned char  adaptive_ref_pic_marking_mode_flag;
+    unsigned char  memory_management_control_operation[32];
+    unsigned int   value[32][2];
+};
+
+/*
+ * Represent packed-buffer of type VAEncSliceParameterBufferTypePacked
+ * length in bits is needed since slice header can be not byte-aligned
+ */
+typedef struct _VAEncPackedSliceHeaderBufferH264
+{
+    unsigned int  length_in_bits;
+    unsigned char has_0x03_bytes;       /* startcode emulataion prevention bytes */
+    unsigned char reserved[3];
+} VAEncPackedSliceHeaderBufferH264;
 
 /****************************
  * H.263 specific encode data structures
