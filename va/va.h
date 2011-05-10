@@ -521,10 +521,10 @@ typedef enum
     VAEncH264SEIBufferType		= 26,
     VAEncMiscParameterBufferType	= 27,
 
-    VAEncSequenceParameterBufferH264Ext = 28,
-    VAEncPictureParameterBufferH264Ext  = 29,
-    VAEncSliceParameterBufferH264Ext    = 30,
-    VAEncDecRefPicMarkingBufferH264     = 31,
+    VAEncSequenceParameterBufferH264ExtType = 28,
+    VAEncPictureParameterBufferH264ExtType  = 29,
+    VAEncSliceParameterBufferH264ExtType    = 30,
+    VAEncDecRefPicMarkingBufferH264Type     = 31,
 
     /* New buffer types:
      *   Buffers contain NAL units packed by application
@@ -1346,7 +1346,7 @@ typedef struct _VAEncH264VUIBufferH264
 	unsigned char  max_dec_frame_buffering;
 
 	// HRD parameters
-	unsigned char  cpb_cnt_minus1
+	unsigned char  cpb_cnt_minus1;
 	unsigned char  bit_rate_scale;
 	unsigned char  cpb_size_scale;
 	unsigned int   bit_rate_value_minus1[32];
@@ -1405,14 +1405,14 @@ typedef struct _VAEncPictureParameterBufferH264Ext
 
 } VAEncPictureParameterBufferH264Ext;
 
-typedef struct VAEncH264DecRefPicMarkingBuffer
+typedef struct _VAEncH264DecRefPicMarkingBuffer
 {
     unsigned char  no_output_of_prior_pics_flag;
     unsigned char  long_term_reference_flag;
     unsigned char  adaptive_ref_pic_marking_mode_flag;
     unsigned char  memory_management_control_operation[32];
     unsigned int   value[32][2];
-};
+} VAEncH264DecRefPicMarkingBuffer;
 
 /*
  * Represent packed-buffer of type VAEncSliceParameterBufferTypePacked
