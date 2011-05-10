@@ -37,12 +37,6 @@
 
 #include "intel_driver.h"
 
-#include "i965_media.h"
-#include "i965_render.h"
-
-#include "gen6_vme.h"
-#include "gen6_mfc.h"
-
 #define I965_MAX_PROFILES                       11
 #define I965_MAX_ENTRYPOINTS                    5
 #define I965_MAX_CONFIG_ATTRIBUTES              10
@@ -50,6 +44,15 @@
 #define I965_MAX_SUBPIC_FORMATS                 4
 #define I965_MAX_DISPLAY_ATTRIBUTES             4
 #define I965_STR_VENDOR                         "i965 Driver 0.1"
+
+struct i965_kernel 
+{
+    char *name;
+    int interface;
+    const uint32_t (*bin)[4];
+    int size;
+    dri_bo *bo;
+};
 
 struct buffer_store
 {
@@ -84,8 +87,7 @@ struct decode_state
     int num_slice_datas;
 };
 
-//keeping mfc encoder's stuff here
-struct mfc_encode_state
+struct encode_state
 {
     struct buffer_store *seq_param;
     struct buffer_store *pic_param;
@@ -98,6 +100,24 @@ struct mfc_encode_state
     int num_slice_params;
 };
 
+#define CODEC_DEC       0
+#define CODEC_ENC       1
+
+union codec_state
+{
+    struct decode_state dec;
+    struct encode_state enc;
+};
+
+struct hw_context
+{
+    void (*run)(VADriverContextP ctx, 
+                VAProfile profile, 
+                union codec_state *codec_state,
+                struct hw_context *hw_context);
+    void (*destroy)(void *);
+};
+
 struct object_context 
 {
     struct object_base base;
@@ -108,8 +128,9 @@ struct object_context
     int picture_width;
     int picture_height;
     int flags;
-    struct decode_state decode_state;
-    struct mfc_encode_state encode_state;
+    int codec_type;
+    union codec_state codec_state;
+    struct hw_context *hw_context;
 };
 
 #define SURFACE_REFERENCED      (1 << 0)
@@ -138,6 +159,7 @@ struct object_surface
     int orig_pp_out_width;
     int orig_pp_out_height;
     dri_bo *pp_out_bo;
+    VAImageID locked_image_id;
     void (*free_private_data)(void **data);
     void *private_data;
 };
@@ -174,6 +196,15 @@ struct object_subpic
     dri_bo *bo;
 };
 
+struct hw_codec_info
+{
+    struct hw_context *(*dec_hw_context_init)(VADriverContextP, VAProfile);
+    struct hw_context *(*enc_hw_context_init)(VADriverContextP, VAProfile);
+};
+
+
+#include "i965_render.h"
+
 struct i965_driver_data 
 {
     struct intel_driver_data intel;
@@ -183,11 +214,9 @@ struct i965_driver_data
     struct object_heap buffer_heap;
     struct object_heap image_heap;
     struct object_heap subpic_heap;
-    struct i965_media_state media_state;
     struct i965_render_state render_state;
+    struct hw_codec_info *codec_info;
     void *pp_context;
-    struct gen6_media_state gen6_media_state;
-    struct gen6_mfc_bcs_state gen6_mfc_bcs_state;
 };
 
 #define NEW_CONFIG_ID() object_heap_allocate(&i965->config_heap);

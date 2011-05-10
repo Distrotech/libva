@@ -27,6 +27,7 @@
  *
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -35,11 +36,11 @@
 
 #include "intel_batchbuffer.h"
 #include "intel_driver.h"
-
 #include "i965_defines.h"
+#include "i965_drv_video.h"
+
 #include "i965_media.h"
 #include "i965_media_mpeg2.h"
-#include "i965_drv_video.h"
 
 #define SURFACE_TARGET	    0
 #define SURFACE_FORWARD	    1
@@ -111,54 +112,54 @@ const uint32_t zigzag_direct[64] = {
     53, 60, 61, 54, 47, 55, 62, 63
 };
 
-static uint32_t frame_intra_kernel[][4] = {
+static const uint32_t frame_intra_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_intra.g4b"
 };
-static uint32_t frame_frame_pred_forward_kernel[][4] = {
+static const uint32_t frame_frame_pred_forward_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_frame_pred_forward.g4b"
 };
-static uint32_t frame_frame_pred_backward_kernel[][4] = {
+static const uint32_t frame_frame_pred_backward_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_frame_pred_backward.g4b"
 };
-static uint32_t frame_frame_pred_bidirect_kernel[][4] = {
+static const uint32_t frame_frame_pred_bidirect_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_frame_pred_bidirect.g4b"
 };
-static uint32_t frame_field_pred_forward_kernel[][4] = {
+static const uint32_t frame_field_pred_forward_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_field_pred_forward.g4b"
 };
-static uint32_t frame_field_pred_backward_kernel[][4] = {
+static const uint32_t frame_field_pred_backward_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_field_pred_backward.g4b"
 };
-static uint32_t frame_field_pred_bidirect_kernel[][4] = {
+static const uint32_t frame_field_pred_bidirect_kernel[][4] = {
    #include "shaders/mpeg2/vld/frame_field_pred_bidirect.g4b"
 };
-static uint32_t lib_kernel[][4] = {
+static const uint32_t lib_kernel[][4] = {
    #include "shaders/mpeg2/vld/lib.g4b"
 };
 /*field picture*/
-static uint32_t field_intra_kernel[][4] = {
+static const uint32_t field_intra_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_intra.g4b"
 };
-static uint32_t field_forward_kernel[][4] = {
+static const uint32_t field_forward_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_forward.g4b"
 };
-static uint32_t field_forward_16x8_kernel[][4] = {
+static const uint32_t field_forward_16x8_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_forward_16x8.g4b"
 };
-static uint32_t field_backward_kernel[][4] = {
+static const uint32_t field_backward_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_backward.g4b"
 };
-static uint32_t field_backward_16x8_kernel[][4] = {
+static const uint32_t field_backward_16x8_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_backward_16x8.g4b"
 };
-static uint32_t field_bidirect_kernel[][4] = {
+static const uint32_t field_bidirect_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_bidirect.g4b"
 };
-static uint32_t field_bidirect_16x8_kernel[][4] = {
+static const uint32_t field_bidirect_16x8_kernel[][4] = {
    #include "shaders/mpeg2/vld/field_bidirect_16x8.g4b"
 };
 
-static struct media_kernel  mpeg2_vld_kernels_gen4[] = {
+static struct i965_kernel  mpeg2_vld_kernels_gen4[] = {
     {
         "FRAME_INTRA",
         FRAME_INTRA,
@@ -281,54 +282,54 @@ static struct media_kernel  mpeg2_vld_kernels_gen4[] = {
 };
 
 /* On IRONLAKE */
-static uint32_t frame_intra_kernel_gen5[][4] = {
+static const uint32_t frame_intra_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_intra.g4b.gen5"
 };
-static uint32_t frame_frame_pred_forward_kernel_gen5[][4] = {
+static const uint32_t frame_frame_pred_forward_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_frame_pred_forward.g4b.gen5"
 };
-static uint32_t frame_frame_pred_backward_kernel_gen5[][4] = {
+static const uint32_t frame_frame_pred_backward_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_frame_pred_backward.g4b.gen5"
 };
-static uint32_t frame_frame_pred_bidirect_kernel_gen5[][4] = {
+static const uint32_t frame_frame_pred_bidirect_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_frame_pred_bidirect.g4b.gen5"
 };
-static uint32_t frame_field_pred_forward_kernel_gen5[][4] = {
+static const uint32_t frame_field_pred_forward_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_field_pred_forward.g4b.gen5"
 };
-static uint32_t frame_field_pred_backward_kernel_gen5[][4] = {
+static const uint32_t frame_field_pred_backward_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_field_pred_backward.g4b.gen5"
 };
-static uint32_t frame_field_pred_bidirect_kernel_gen5[][4] = {
+static const uint32_t frame_field_pred_bidirect_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/frame_field_pred_bidirect.g4b.gen5"
 };
-static uint32_t lib_kernel_gen5[][4] = {
+static const uint32_t lib_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/lib.g4b.gen5"
 };
 /*field picture*/
-static uint32_t field_intra_kernel_gen5[][4] = {
+static const uint32_t field_intra_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_intra.g4b.gen5"
 };
-static uint32_t field_forward_kernel_gen5[][4] = {
+static const uint32_t field_forward_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_forward.g4b.gen5"
 };
-static uint32_t field_forward_16x8_kernel_gen5[][4] = {
+static const uint32_t field_forward_16x8_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_forward_16x8.g4b.gen5"
 };
-static uint32_t field_backward_kernel_gen5[][4] = {
+static const uint32_t field_backward_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_backward.g4b.gen5"
 };
-static uint32_t field_backward_16x8_kernel_gen5[][4] = {
+static const uint32_t field_backward_16x8_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_backward_16x8.g4b.gen5"
 };
-static uint32_t field_bidirect_kernel_gen5[][4] = {
+static const uint32_t field_bidirect_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_bidirect.g4b.gen5"
 };
-static uint32_t field_bidirect_16x8_kernel_gen5[][4] = {
+static const uint32_t field_bidirect_16x8_kernel_gen5[][4] = {
    #include "shaders/mpeg2/vld/field_bidirect_16x8.g4b.gen5"
 };
 
-static struct media_kernel  mpeg2_vld_kernels_gen5[] = {
+static struct i965_kernel  mpeg2_vld_kernels_gen5[] = {
     {
         "FRAME_INTRA",
         FRAME_INTRA,
@@ -450,10 +451,6 @@ static struct media_kernel  mpeg2_vld_kernels_gen5[] = {
     }
 };
 
-static struct media_kernel  *mpeg2_vld_kernels = NULL;
-
-#define NUM_MPEG2_VLD_KERNELS (sizeof(mpeg2_vld_kernels_gen4)/sizeof(mpeg2_vld_kernels_gen4[0]))
-
 static void
 i965_media_mpeg2_surface_state(VADriverContextP ctx, 
                                int index,
@@ -462,10 +459,10 @@ i965_media_mpeg2_surface_state(VADriverContextP ctx,
                                int w, int h,
                                Bool is_dst,
 			       int vert_line_stride,
-			       int vert_line_stride_ofs)
+			       int vert_line_stride_ofs,
+                               struct i965_media_context *media_context)
 {
     struct i965_driver_data *i965 = i965_driver_data(ctx);  
-    struct i965_media_state *media_state = &i965->media_state;
     struct i965_surface_state *ss;
     dri_bo *bo;
     uint32_t write_domain, read_domain;
@@ -503,8 +500,8 @@ i965_media_mpeg2_surface_state(VADriverContextP ctx,
     dri_bo_unmap(bo);
 
     assert(index < MAX_MEDIA_SURFACES);
-//    assert(media_state->surface_state[index].bo == NULL);
-    media_state->surface_state[index].bo = bo;
+//    assert(media_context->surface_state[index].bo == NULL);
+    media_context->surface_state[index].bo = bo;
 }
 
 static void
@@ -513,7 +510,8 @@ i965_media_mpeg2_surface_setup(VADriverContextP ctx,
                                struct object_surface *obj_surface, 
                                Bool is_dst, 
 			       int picture_structure,
-			       int surface)
+			       int surface,
+                               struct i965_media_context *media_context)
 {
     int w = obj_surface->width;
     int h = obj_surface->height;
@@ -529,64 +527,80 @@ i965_media_mpeg2_surface_setup(VADriverContextP ctx,
 
     if (picture_structure == MPEG_FRAME) {
 	i965_media_mpeg2_surface_state(ctx, base_index + 0, obj_surface,
-					0, w, h, 
-					is_dst, 0, 0);
+                                       0, w, h, 
+                                       is_dst, 0, 0,
+                                       media_context);
 	i965_media_mpeg2_surface_state(ctx, base_index + 1, obj_surface,
-					w * h, w / 2, h / 2, 
-					is_dst, 0, 0);
+                                       w * h, w / 2, h / 2, 
+                                       is_dst, 0, 0,
+                                       media_context);
 	i965_media_mpeg2_surface_state(ctx, base_index + 2, obj_surface,
-					w * h + w * h / 4, w / 2, h / 2, 
-					is_dst, 0, 0);
+                                       w * h + w * h / 4, w / 2, h / 2, 
+                                       is_dst, 0, 0,
+                                       media_context);
     } else {
 	if (surface == SURFACE_TARGET) {
 	    i965_media_mpeg2_surface_state(ctx, 3, obj_surface,
-					    0, w, h, 
-					    False, 0, 0);
+                                           0, w, h, 
+                                           False, 0, 0,
+                                           media_context);
 	    i965_media_mpeg2_surface_state(ctx, 10, obj_surface,
-					    w * h, w / 2, h / 2, 
-					    False, 0, 0);
+                                           w * h, w / 2, h / 2, 
+                                           False, 0, 0,
+                                           media_context);
 	    i965_media_mpeg2_surface_state(ctx, 11, obj_surface,
-					    w * h + w * h / 4, w / 2, h / 2, 
-					    False, 0, 0);
+                                           w * h + w * h / 4, w / 2, h / 2, 
+                                           False, 0, 0,
+                                           media_context);
 	    if (picture_structure == MPEG_TOP_FIELD) {
 		i965_media_mpeg2_surface_state(ctx, base_index + 0, obj_surface,
-						0, w, h, 
-						True, 1, 0);
+                                               0, w, h, 
+                                               True, 1, 0,
+                                               media_context);
 		i965_media_mpeg2_surface_state(ctx, base_index + 1, obj_surface,
-						w * h, w / 2, h / 2, 
-						True, 1, 0);
+                                               w * h, w / 2, h / 2, 
+                                               True, 1, 0,
+                                               media_context);
 		i965_media_mpeg2_surface_state(ctx, base_index + 2, obj_surface,
-						w * h + w * h / 4, w / 2, h / 2, 
-						True, 1, 0);
+                                               w * h + w * h / 4, w / 2, h / 2, 
+                                               True, 1, 0,
+                                               media_context);
 	    } else {
 		assert(picture_structure == MPEG_BOTTOM_FIELD);
 		i965_media_mpeg2_surface_state(ctx, base_index + 0, obj_surface,
-						0, w, h, 
-						True, 1, 1);
+                                               0, w, h, 
+                                               True, 1, 1,
+                                               media_context);
 		i965_media_mpeg2_surface_state(ctx, base_index + 1, obj_surface,
-						w * h, w / 2, h / 2, 
-						True, 1, 1);
+                                               w * h, w / 2, h / 2, 
+                                               True, 1, 1,
+                                               media_context);
 		i965_media_mpeg2_surface_state(ctx, base_index + 2, obj_surface,
-						w * h + w * h / 4, w / 2, h / 2, 
-						True, 1, 1);
+                                               w * h + w * h / 4, w / 2, h / 2, 
+                                               True, 1, 1,
+                                               media_context);
 	    }
 	} else {
 	    i965_media_mpeg2_surface_state(ctx, base_index + 0, obj_surface,
-					    0, w, h, 
-					    is_dst, 0, 0);
+                                           0, w, h, 
+                                           is_dst, 0, 0,
+                                           media_context);
 	    i965_media_mpeg2_surface_state(ctx, base_index + 1, obj_surface,
-					    w * h, w / 2, h / 2, 
-					    is_dst, 0, 0);
+                                           w * h, w / 2, h / 2, 
+                                           is_dst, 0, 0,
+                                           media_context);
 	    i965_media_mpeg2_surface_state(ctx, base_index + 2, obj_surface,
-					    w * h + w * h / 4, w / 2, h / 2, 
-					    is_dst, 0, 0);
+                                           w * h + w * h / 4, w / 2, h / 2, 
+                                           is_dst, 0, 0,
+                                           media_context);
 	}
     }
 }
 
 void 
 i965_media_mpeg2_surfaces_setup(VADriverContextP ctx, 
-                                struct decode_state *decode_state)
+                                struct decode_state *decode_state,
+                                struct i965_media_context *media_context)
 {
     struct i965_driver_data *i965 = i965_driver_data(ctx);  
     struct object_surface *obj_surface;
@@ -598,37 +612,43 @@ i965_media_mpeg2_surfaces_setup(VADriverContextP ctx,
     obj_surface = SURFACE(decode_state->current_render_target);
     assert(obj_surface);
     i965_media_mpeg2_surface_setup(ctx, 0, obj_surface, True,
-		param->picture_coding_extension.bits.picture_structure, SURFACE_TARGET);
+                                   param->picture_coding_extension.bits.picture_structure,
+                                   SURFACE_TARGET,
+                                   media_context);
 
     obj_surface = SURFACE(param->forward_reference_picture);
     if (!obj_surface) {
 //        assert(param->picture_coding_type == 1); /* I-picture */
     } else {
         i965_media_mpeg2_surface_setup(ctx, 4, obj_surface, False,
-			param->picture_coding_extension.bits.picture_structure, SURFACE_FORWARD);
+                                       param->picture_coding_extension.bits.picture_structure, 
+                                       SURFACE_FORWARD,
+                                       media_context);
         obj_surface = SURFACE(param->backward_reference_picture);
         if (!obj_surface) {
             assert(param->picture_coding_type == 2); /* P-picture */
 
             obj_surface = SURFACE(param->forward_reference_picture);
             i965_media_mpeg2_surface_setup(ctx, 7, obj_surface, False,
-				param->picture_coding_extension.bits.picture_structure, SURFACE_BACKWARD);            
+                                           param->picture_coding_extension.bits.picture_structure, 
+                                           SURFACE_BACKWARD,
+                                           media_context);
         } else {
             assert(param->picture_coding_type == 3); /* B-picture */
             i965_media_mpeg2_surface_setup(ctx, 7, obj_surface, False,
-				param->picture_coding_extension.bits.picture_structure, SURFACE_BIDIRECT);
+                                           param->picture_coding_extension.bits.picture_structure,
+                                           SURFACE_BIDIRECT,
+                                           media_context);
         }
     }
 }
 
 static void
-i965_media_mpeg2_binding_table(VADriverContextP ctx)
+i965_media_mpeg2_binding_table(VADriverContextP ctx, struct i965_media_context *media_context)
 {
-    struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
     int i;
     unsigned int *binding_table;
-    dri_bo *bo = media_state->binding_table.bo;
+    dri_bo *bo = media_context->binding_table.bo;
 
     dri_bo_map(bo, 1);
     assert(bo->virtual);
@@ -636,58 +656,55 @@ i965_media_mpeg2_binding_table(VADriverContextP ctx)
     memset(binding_table, 0, bo->size);
 
     for (i = 0; i < MAX_MEDIA_SURFACES; i++) {
-        if (media_state->surface_state[i].bo) {
-            binding_table[i] = media_state->surface_state[i].bo->offset;
+        if (media_context->surface_state[i].bo) {
+            binding_table[i] = media_context->surface_state[i].bo->offset;
             dri_bo_emit_reloc(bo,
                               I915_GEM_DOMAIN_INSTRUCTION, 0,
                               0,
                               i * sizeof(*binding_table),
-                              media_state->surface_state[i].bo);
+                              media_context->surface_state[i].bo);
         }
     }
 
-    dri_bo_unmap(media_state->binding_table.bo);
+    dri_bo_unmap(media_context->binding_table.bo);
 }
 
 static void
-i965_media_mpeg2_vfe_state(VADriverContextP ctx)
+i965_media_mpeg2_vfe_state(VADriverContextP ctx, struct i965_media_context *media_context)
 {
-    struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
     struct i965_vfe_state *vfe_state;
     dri_bo *bo;
 
-    bo = media_state->vfe_state.bo;
+    bo = media_context->vfe_state.bo;
     dri_bo_map(bo, 1);
     assert(bo->virtual);
     vfe_state = bo->virtual;
     memset(vfe_state, 0, sizeof(*vfe_state));
     vfe_state->vfe0.extend_vfe_state_present = 1;
     vfe_state->vfe1.vfe_mode = VFE_VLD_MODE;
-    vfe_state->vfe1.num_urb_entries = media_state->urb.num_vfe_entries;
+    vfe_state->vfe1.num_urb_entries = media_context->urb.num_vfe_entries;
     vfe_state->vfe1.children_present = 0;
-    vfe_state->vfe1.urb_entry_alloc_size = media_state->urb.size_vfe_entry - 1;
-    vfe_state->vfe1.max_threads = media_state->urb.num_vfe_entries - 1;
+    vfe_state->vfe1.urb_entry_alloc_size = media_context->urb.size_vfe_entry - 1;
+    vfe_state->vfe1.max_threads = media_context->urb.num_vfe_entries - 1;
     vfe_state->vfe2.interface_descriptor_base = 
-        media_state->idrt.bo->offset >> 4; /* reloc */
+        media_context->idrt.bo->offset >> 4; /* reloc */
     dri_bo_emit_reloc(bo,
                       I915_GEM_DOMAIN_INSTRUCTION, 0,
                       0,
                       offsetof(struct i965_vfe_state, vfe2),
-                      media_state->idrt.bo);
+                      media_context->idrt.bo);
     dri_bo_unmap(bo);
 }
 
 static void 
-i965_media_mpeg2_interface_descriptor_remap_table(VADriverContextP ctx)
+i965_media_mpeg2_interface_descriptor_remap_table(VADriverContextP ctx, struct i965_media_context *media_context)
 {
-    struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
+    struct i965_mpeg2_context *i965_mpeg2_context = (struct i965_mpeg2_context *)media_context->private_context;
     struct i965_interface_descriptor *desc;
     int i;
     dri_bo *bo;
 
-    bo = media_state->idrt.bo;
+    bo = media_context->idrt.bo;
     dri_bo_map(bo, 1);
     assert(bo->virtual);
     desc = bo->virtual;
@@ -695,24 +712,24 @@ i965_media_mpeg2_interface_descriptor_remap_table(VADriverContextP ctx)
     for (i = 0; i < NUM_MPEG2_VLD_KERNELS; i++) {
         memset(desc, 0, sizeof(*desc));
         desc->desc0.grf_reg_blocks = 15;
-        desc->desc0.kernel_start_pointer = mpeg2_vld_kernels[i].bo->offset >> 6; /* reloc */
+        desc->desc0.kernel_start_pointer = i965_mpeg2_context->vld_kernels[i].bo->offset >> 6; /* reloc */
         desc->desc1.const_urb_entry_read_offset = 0;
         desc->desc1.const_urb_entry_read_len = 30;
         desc->desc3.binding_table_entry_count = 0;
         desc->desc3.binding_table_pointer = 
-            media_state->binding_table.bo->offset >> 5; /*reloc */
+            media_context->binding_table.bo->offset >> 5; /*reloc */
 
         dri_bo_emit_reloc(bo,
                           I915_GEM_DOMAIN_INSTRUCTION, 0,
                           desc->desc0.grf_reg_blocks,
                           i * sizeof(*desc) + offsetof(struct i965_interface_descriptor, desc0),
-                          mpeg2_vld_kernels[i].bo);
+                          i965_mpeg2_context->vld_kernels[i].bo);
 
         dri_bo_emit_reloc(bo,
                           I915_GEM_DOMAIN_INSTRUCTION, 0,
                           desc->desc3.binding_table_entry_count,
                           i * sizeof(*desc) + offsetof(struct i965_interface_descriptor, desc3),
-                          media_state->binding_table.bo);
+                          media_context->binding_table.bo);
         desc++;
     }
 
@@ -720,20 +737,20 @@ i965_media_mpeg2_interface_descriptor_remap_table(VADriverContextP ctx)
 }
 
 void
-i965_media_mpeg2_vld_state(VADriverContextP ctx, struct decode_state *decode_state)
+i965_media_mpeg2_vld_state(VADriverContextP ctx,
+                           struct decode_state *decode_state,
+                           struct i965_media_context *media_context)
 {
-    struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
     struct i965_vld_state *vld_state;
     VAPictureParameterBufferMPEG2 *param;
 
     assert(decode_state->pic_param && decode_state->pic_param->buffer);
     param = (VAPictureParameterBufferMPEG2 *)decode_state->pic_param->buffer;
 
-    assert(media_state->extended_state.bo);
-    dri_bo_map(media_state->extended_state.bo, 1);
-    assert(media_state->extended_state.bo->virtual);
-    vld_state = media_state->extended_state.bo->virtual;
+    assert(media_context->extended_state.bo);
+    dri_bo_map(media_context->extended_state.bo, 1);
+    assert(media_context->extended_state.bo->virtual);
+    vld_state = media_context->extended_state.bo->virtual;
     memset(vld_state, 0, sizeof(*vld_state));
 
     vld_state->vld0.f_code_0_0 = ((param->f_code >> 12) & 0xf);
@@ -782,23 +799,24 @@ i965_media_mpeg2_vld_state(VADriverContextP ctx, struct decode_state *decode_sta
 	vld_state->desc_remap_table0.index_7 = FIELD_BIDIRECT_16X8;
     }
 
-    dri_bo_unmap(media_state->extended_state.bo);
+    dri_bo_unmap(media_context->extended_state.bo);
 }
 
 static void
-i965_media_mpeg2_upload_constants(VADriverContextP ctx, struct decode_state *decode_state)
+i965_media_mpeg2_upload_constants(VADriverContextP ctx,
+                                  struct decode_state *decode_state,
+                                  struct i965_media_context *media_context)
 {
-    struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
+    struct i965_mpeg2_context *i965_mpeg2_context = (struct i965_mpeg2_context *)media_context->private_context;
     int i, j;
     unsigned char *constant_buffer;
     unsigned char *qmx;
     unsigned int *lib_reloc;
     int lib_reloc_offset = 0;
 
-    dri_bo_map(media_state->curbe.bo, 1);
-    assert(media_state->curbe.bo->virtual);
-    constant_buffer = media_state->curbe.bo->virtual;
+    dri_bo_map(media_context->curbe.bo, 1);
+    assert(media_context->curbe.bo->virtual);
+    constant_buffer = media_context->curbe.bo->virtual;
 
     /* iq_matrix */
     if (decode_state->iq_matrix && decode_state->iq_matrix->buffer) {
@@ -835,30 +853,34 @@ i965_media_mpeg2_upload_constants(VADriverContextP ctx, struct decode_state *dec
     lib_reloc_offset = 128 + sizeof(idct_table);
     lib_reloc = (unsigned int *)(constant_buffer + lib_reloc_offset);
     for (i = 0; i < 8; i++) {
-        lib_reloc[i] = mpeg2_vld_kernels[LIB_INTERFACE].bo->offset;
-        dri_bo_emit_reloc(media_state->curbe.bo,
+        lib_reloc[i] = i965_mpeg2_context->vld_kernels[LIB_INTERFACE].bo->offset;
+        dri_bo_emit_reloc(media_context->curbe.bo,
                           I915_GEM_DOMAIN_INSTRUCTION, 0,
                           0,
                           lib_reloc_offset + i * sizeof(unsigned int),
-                          mpeg2_vld_kernels[LIB_INTERFACE].bo);
+                          i965_mpeg2_context->vld_kernels[LIB_INTERFACE].bo);
     }
 
-    dri_bo_unmap(media_state->curbe.bo);
+    dri_bo_unmap(media_context->curbe.bo);
 }
 
 static void
-i965_media_mpeg2_states_setup(VADriverContextP ctx, struct decode_state *decode_state)
+i965_media_mpeg2_states_setup(VADriverContextP ctx, 
+                              struct decode_state *decode_state, 
+                              struct i965_media_context *media_context)
 {
-    i965_media_mpeg2_surfaces_setup(ctx, decode_state);
-    i965_media_mpeg2_binding_table(ctx);
-    i965_media_mpeg2_interface_descriptor_remap_table(ctx);
-    i965_media_mpeg2_vld_state(ctx, decode_state);
-    i965_media_mpeg2_vfe_state(ctx);
-    i965_media_mpeg2_upload_constants(ctx, decode_state);
+    i965_media_mpeg2_surfaces_setup(ctx, decode_state, media_context);
+    i965_media_mpeg2_binding_table(ctx, media_context);
+    i965_media_mpeg2_interface_descriptor_remap_table(ctx, media_context);
+    i965_media_mpeg2_vld_state(ctx, decode_state, media_context);
+    i965_media_mpeg2_vfe_state(ctx, media_context);
+    i965_media_mpeg2_upload_constants(ctx, decode_state, media_context);
 }
 
 static void
-i965_media_mpeg2_objects(VADriverContextP ctx, struct decode_state *decode_state)
+i965_media_mpeg2_objects(VADriverContextP ctx, 
+                         struct decode_state *decode_state,
+                         struct i965_media_context *media_context)
 {
     int i, j;
     VASliceParameterBufferMPEG2 *slice_param;
@@ -893,71 +915,89 @@ i965_media_mpeg2_objects(VADriverContextP ctx, struct decode_state *decode_state
 static void
 i965_media_mpeg2_free_private_context(void **data)
 {
+    struct i965_mpeg2_context *i965_mpeg2_context = *data;
     int i;
 
+    if (i965_mpeg2_context == NULL)
+        return;
+
     for (i = 0; i < NUM_MPEG2_VLD_KERNELS; i++) {
-        struct media_kernel *kernel = &mpeg2_vld_kernels[i];
+        struct i965_kernel *kernel = &i965_mpeg2_context->vld_kernels[i];
 
         dri_bo_unreference(kernel->bo);
         kernel->bo = NULL;
     }
 
-    mpeg2_vld_kernels = NULL;
+    free(i965_mpeg2_context);
+    *data = NULL;
 }
 
 void 
-i965_media_mpeg2_decode_init(VADriverContextP ctx, struct decode_state *decode_state)
+i965_media_mpeg2_decode_init(VADriverContextP ctx, 
+                             struct decode_state *decode_state, 
+                             struct i965_media_context *media_context)
 {
     struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
     dri_bo *bo;
-    int i;
-    if (mpeg2_vld_kernels == NULL) {
-        /* kernel */
-        assert(NUM_MPEG2_VLD_KERNELS == (sizeof(mpeg2_vld_kernels_gen5) / 
-                                         sizeof(mpeg2_vld_kernels_gen5[0])));
-        assert(NUM_MPEG2_VLD_KERNELS <= MAX_INTERFACE_DESC);
 
-        if (IS_IRONLAKE(i965->intel.device_id))
-            mpeg2_vld_kernels = mpeg2_vld_kernels_gen5;
-        else
-            mpeg2_vld_kernels = mpeg2_vld_kernels_gen4;
+    dri_bo_unreference(media_context->indirect_object.bo);
+    media_context->indirect_object.bo = NULL;
 
-        for (i = 0; i < NUM_MPEG2_VLD_KERNELS; i++) {
-            struct media_kernel *kernel = &mpeg2_vld_kernels[i];
-            kernel->bo = dri_bo_alloc(i965->intel.bufmgr, 
-                                      kernel->name, 
-                                      kernel->size, 64);
-            assert(kernel->bo);
-            dri_bo_subdata(kernel->bo, 0, kernel->size, kernel->bin);
-        }
-
-        /* URB */
-        media_state->urb.num_vfe_entries = 28;
-        media_state->urb.size_vfe_entry = 13;
-
-        media_state->urb.num_cs_entries = 1;
-        media_state->urb.size_cs_entry = 16;
-
-        media_state->urb.vfe_start = 0;
-        media_state->urb.cs_start = media_state->urb.vfe_start + 
-            media_state->urb.num_vfe_entries * media_state->urb.size_vfe_entry;
-        assert(media_state->urb.cs_start + 
-               media_state->urb.num_cs_entries * media_state->urb.size_cs_entry <= URB_SIZE((&i965->intel)));
-
-        /* hook functions */
-        media_state->media_states_setup = i965_media_mpeg2_states_setup;
-        media_state->media_objects = i965_media_mpeg2_objects;
-        media_state->free_private_context = i965_media_mpeg2_free_private_context;
-    }
-
-    media_state->extended_state.enabled = 1;
-    media_state->indirect_object.bo = NULL;
-    dri_bo_unreference(media_state->extended_state.bo);
+    media_context->extended_state.enabled = 1;
+    dri_bo_unreference(media_context->extended_state.bo);
     bo = dri_bo_alloc(i965->intel.bufmgr, 
                       "vld state", 
                       sizeof(struct i965_vld_state), 32);
     assert(bo);
-    media_state->extended_state.bo = bo;
+    media_context->extended_state.bo = bo;
 }
 
+void 
+i965_media_mpeg2_dec_context_init(VADriverContextP ctx, struct i965_media_context *media_context)
+{
+    struct i965_driver_data *i965 = i965_driver_data(ctx);
+    struct i965_mpeg2_context *i965_mpeg2_context;
+    int i;
+
+    i965_mpeg2_context = calloc(1, sizeof(struct i965_mpeg2_context));
+
+    /* kernel */
+    assert(NUM_MPEG2_VLD_KERNELS == (sizeof(mpeg2_vld_kernels_gen4) / 
+                                     sizeof(mpeg2_vld_kernels_gen4[0])));
+    assert(NUM_MPEG2_VLD_KERNELS == (sizeof(mpeg2_vld_kernels_gen5) / 
+                                     sizeof(mpeg2_vld_kernels_gen5[0])));
+    assert(NUM_MPEG2_VLD_KERNELS <= MAX_INTERFACE_DESC);
+
+    if (IS_IRONLAKE(i965->intel.device_id))
+        memcpy(i965_mpeg2_context->vld_kernels, mpeg2_vld_kernels_gen5, sizeof(i965_mpeg2_context->vld_kernels));
+    else
+        memcpy(i965_mpeg2_context->vld_kernels, mpeg2_vld_kernels_gen4, sizeof(i965_mpeg2_context->vld_kernels));
+
+    for (i = 0; i < NUM_MPEG2_VLD_KERNELS; i++) {
+        struct i965_kernel *kernel = &i965_mpeg2_context->vld_kernels[i];
+        kernel->bo = dri_bo_alloc(i965->intel.bufmgr, 
+                                  kernel->name, 
+                                  kernel->size, 64);
+        assert(kernel->bo);
+        dri_bo_subdata(kernel->bo, 0, kernel->size, kernel->bin);
+    }
+
+    /* URB */
+    media_context->urb.num_vfe_entries = 28;
+    media_context->urb.size_vfe_entry = 13;
+
+    media_context->urb.num_cs_entries = 1;
+    media_context->urb.size_cs_entry = 16;
+
+    media_context->urb.vfe_start = 0;
+    media_context->urb.cs_start = media_context->urb.vfe_start + 
+        media_context->urb.num_vfe_entries * media_context->urb.size_vfe_entry;
+    assert(media_context->urb.cs_start + 
+           media_context->urb.num_cs_entries * media_context->urb.size_cs_entry <= URB_SIZE((&i965->intel)));
+
+    /* hook functions */
+    media_context->media_states_setup = i965_media_mpeg2_states_setup;
+    media_context->media_objects = i965_media_mpeg2_objects;
+    media_context->private_context = i965_mpeg2_context;
+    media_context->free_private_context = i965_media_mpeg2_free_private_context;
+}

@@ -41,8 +41,6 @@
 #include "i965_media_h264.h"
 #include "i965_media.h"
 
-extern struct media_kernel *h264_avc_kernels;
-
 /* On Ironlake */
 #include "shaders/h264/mc/export.inc.gen5"
 
@@ -322,11 +320,9 @@ i965_avc_hw_scoreboard_pipeline_setup(VADriverContextP ctx, struct i965_avc_hw_s
 }
 
 void
-i965_avc_hw_scoreboard(VADriverContextP ctx, struct decode_state *decode_state)
+i965_avc_hw_scoreboard(VADriverContextP ctx, struct decode_state *decode_state, void *h264_context)
 {
-    struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
-    struct i965_h264_context *i965_h264_context = (struct i965_h264_context *)media_state->private_context;
+    struct i965_h264_context *i965_h264_context = (struct i965_h264_context *)h264_context;
 
     if (i965_h264_context->use_avc_hw_scoreboard) {
         struct i965_avc_hw_scoreboard_context *avc_hw_scoreboard_context = &i965_h264_context->avc_hw_scoreboard_context;
@@ -337,7 +333,7 @@ i965_avc_hw_scoreboard(VADriverContextP ctx, struct decode_state *decode_state)
         avc_hw_scoreboard_context->surface.total_mbs = i965_h264_context->avc_it_command_mb_info.mbs * 2;
         
         dri_bo_unreference(avc_hw_scoreboard_context->hw_kernel.bo);
-        avc_hw_scoreboard_context->hw_kernel.bo = h264_avc_kernels[H264_AVC_COMBINED].bo;
+        avc_hw_scoreboard_context->hw_kernel.bo = i965_h264_context->avc_kernels[H264_AVC_COMBINED].bo;
         assert(avc_hw_scoreboard_context->hw_kernel.bo != NULL);
         dri_bo_reference(avc_hw_scoreboard_context->hw_kernel.bo);
 
@@ -352,11 +348,10 @@ i965_avc_hw_scoreboard(VADriverContextP ctx, struct decode_state *decode_state)
 }
 
 void
-i965_avc_hw_scoreboard_decode_init(VADriverContextP ctx)
+i965_avc_hw_scoreboard_decode_init(VADriverContextP ctx, void *h264_context)
 {
     struct i965_driver_data *i965 = i965_driver_data(ctx);
-    struct i965_media_state *media_state = &i965->media_state;
-    struct i965_h264_context *i965_h264_context = (struct i965_h264_context *)media_state->private_context;
+    struct i965_h264_context *i965_h264_context = (struct i965_h264_context *)h264_context;
 
     if (i965_h264_context->use_avc_hw_scoreboard) {
         struct i965_avc_hw_scoreboard_context *avc_hw_scoreboard_context = &i965_h264_context->avc_hw_scoreboard_context;

@@ -35,10 +35,17 @@
 #include <i915_drm.h>
 #include <intel_bufmgr.h>
 
-#include "i965_structs.h"
-
 struct decode_state;
+struct i965_media_context;
 
-void i965_media_mpeg2_decode_init(VADriverContextP ctx, struct decode_state * decode_state);
+#define NUM_MPEG2_VLD_KERNELS           15
+
+struct i965_mpeg2_context
+{
+    struct i965_kernel vld_kernels[NUM_MPEG2_VLD_KERNELS];
+};
+
+void i965_media_mpeg2_decode_init(VADriverContextP ctx, struct decode_state * decode_state, struct i965_media_context *media_context);
+void i965_media_mpeg2_dec_context_init(VADriverContextP ctx, struct i965_media_context *media_context);
 
 #endif /* _I965_MEDIA_MPEG2_H_ */

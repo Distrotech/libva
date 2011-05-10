@@ -5,6 +5,9 @@
 #include "i965_avc_hw_scoreboard.h"
 #include "i965_avc_ildb.h"
 
+struct decode_state;
+struct i965_media_context;
+
 #define INST_UNIT_GEN4  16
 #define INST_UNIT_GEN5  8
 
@@ -16,6 +19,8 @@ enum {
     H264_AVC_COMBINED = 0,
     H264_AVC_NULL
 };
+
+#define NUM_H264_AVC_KERNELS    2
 
 struct i965_h264_context
 {
@@ -59,8 +64,11 @@ struct i965_h264_context
         VASurfaceID surface_id;
         int frame_store_id;
     } fsid_list[16];
+
+    struct i965_kernel avc_kernels[NUM_H264_AVC_KERNELS];
 };
 
-void i965_media_h264_decode_init(VADriverContextP ctx, struct decode_state *decode_state);
+void i965_media_h264_decode_init(VADriverContextP ctx, struct decode_state *decode_state, struct i965_media_context *media_context);
+void i965_media_h264_dec_context_init(VADriverContextP ctx, struct i965_media_context *media_context);
 
 #endif /* _I965_MEDIA_H264_H_ */

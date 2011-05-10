@@ -1,5 +1,5 @@
 /*
- * Copyright © 2010 Intel Corporation
+ * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- *
+ * 
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -20,39 +20,42 @@
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors:
- *    Xiang Haihao <haihao.xiang@intel.com>
- *
  */
 
-#ifndef __I965_AVC_BSD_H__
-#define __I965_AVC_BSD_H__
+Display *dpy;
+VADisplay va_dpy;
+VAStatus va_status;
+VAProfile *profiles ;
+int major_version, minor_version;
 
-#define DMV_SIZE        0x88000 /* 557056 bytes for a frame */
-
-struct i965_avc_bsd_context
+void test_init()
 {
-    struct {
-        dri_bo *bo;
-    } bsd_raw_store;
+  dpy = XOpenDisplay(NULL);
+  ASSERT( dpy );
+  status("XOpenDisplay: dpy = %08x\n", dpy);
+  
+  va_dpy = vaGetDisplay(dpy);
+  ASSERT( va_dpy );  
+  status("vaGetDisplay: va_dpy = %08x\n", va_dpy);
+  
+  va_status = vaInitialize(va_dpy, &major_version, &minor_version);
+  ASSERT( VA_STATUS_SUCCESS == va_status );
+  status("vaInitialize: major = %d minor = %d\n", major_version, minor_version);
+}
 
-    struct {
-        dri_bo *bo;
-    } mpr_row_store;
-};
-
-struct i965_avc_bsd_surface
+void test_terminate()
 {
-    struct i965_avc_bsd_context *ctx;
-    dri_bo *dmv_top;
-    dri_bo *dmv_bottom;
-    int dmv_bottom_flag;
-};
+  va_status = vaTerminate(va_dpy);
+  ASSERT( VA_STATUS_SUCCESS == va_status );
+  status("vaTerminate\n");
 
-void i965_avc_bsd_pipeline(VADriverContextP, struct decode_state *, void *h264_context);
-void i965_avc_bsd_decode_init(VADriverContextP, void *h264_context);
-Bool i965_avc_bsd_ternimate(struct i965_avc_bsd_context *);
+  XCloseDisplay(dpy);
+  status("XCloseDisplay\n");
 
-#endif /* __I965_AVC_BSD_H__ */
+  if (profiles)
+  {
+      free(profiles);
+      profiles = NULL;
+  }
+}
 
