@@ -47,20 +47,27 @@
 #define IMAGE_ID_OFFSET                 0x0a000000
 #define SUBPIC_ID_OFFSET                0x10000000
 
-#define HAS_MPEG2(ctx)  (IS_G4X((ctx)->intel.device_id) ||              \
-                         IS_IRONLAKE((ctx)->intel.device_id) ||         \
-                         (IS_GEN6((ctx)->intel.device_id) && (ctx)->intel.has_bsd))
+#define HAS_MPEG2(ctx)  (IS_G4X((ctx)->intel.device_id) ||      \
+                         IS_IRONLAKE((ctx)->intel.device_id) || \
+                         ((IS_GEN6((ctx)->intel.device_id) ||   \
+                           IS_GEN7((ctx)->intel.device_id)) &&  \
+                          (ctx)->intel.has_bsd))
 
-#define HAS_H264(ctx)   ((IS_GEN6((ctx)->intel.device_id) ||            \
+#define HAS_H264(ctx)   ((IS_GEN7((ctx)->intel.device_id) ||            \
+                          IS_GEN6((ctx)->intel.device_id) ||            \
                           IS_IRONLAKE((ctx)->intel.device_id)) &&       \
                          (ctx)->intel.has_bsd)
 
-#define HAS_VC1(ctx)    (IS_GEN6((ctx)->intel.device_id) && (ctx)->intel.has_bsd)
+#define HAS_VC1(ctx)    ((IS_GEN7((ctx)->intel.device_id) ||    \
+                          IS_GEN6((ctx)->intel.device_id)) &&   \
+                         (ctx)->intel.has_bsd)
 
-#define HAS_TILED_SURFACE(ctx) (IS_GEN6((ctx)->intel.device_id) &&      \
+#define HAS_TILED_SURFACE(ctx) ((IS_GEN7((ctx)->intel.device_id) ||     \
+                                 IS_GEN6((ctx)->intel.device_id)) &&    \
                                 (ctx)->render_state.interleaved_uv)
 
-#define HAS_ENCODER(ctx)        (IS_GEN6((ctx)->intel.device_id) &&     \
+#define HAS_ENCODER(ctx)        ((IS_GEN7((ctx)->intel.device_id) ||    \
+                                  IS_GEN6((ctx)->intel.device_id)) &&   \
                                  (ctx)->intel.has_bsd)
 
 enum {
@@ -146,6 +153,12 @@ extern struct hw_context *gen6_enc_hw_context_init(VADriverContextP, VAProfile);
 static struct hw_codec_info gen6_hw_codec_info = {
     .dec_hw_context_init = gen6_dec_hw_context_init,
     .enc_hw_context_init = gen6_enc_hw_context_init,
+};
+
+extern struct hw_context *gen7_dec_hw_context_init(VADriverContextP, VAProfile);
+static struct hw_codec_info gen7_hw_codec_info = {
+    .dec_hw_context_init = gen7_dec_hw_context_init,
+    .enc_hw_context_init = NULL,
 };
 
 VAStatus 
@@ -465,7 +478,8 @@ i965_CreateSurfaces(VADriverContextP ctx,
         obj_surface->orig_width = width;
         obj_surface->orig_height = height;
 
-        if (IS_GEN6(i965->intel.device_id)) {
+        if (IS_GEN6(i965->intel.device_id) ||
+            IS_GEN7(i965->intel.device_id)) {
             obj_surface->width = ALIGN(obj_surface->orig_width, 128);
             obj_surface->height = ALIGN(obj_surface->orig_height, 32);
         } else {
@@ -826,7 +840,7 @@ i965_CreateContext(VADriverContextP ctx,
         render_state->interleaved_uv = 1;
         break;
     default:
-        render_state->interleaved_uv = !!IS_GEN6(i965->intel.device_id);
+        render_state->interleaved_uv = !!(IS_GEN6(i965->intel.device_id) || IS_GEN7(i965->intel.device_id));
         break;
     }
 
@@ -1555,9 +1569,6 @@ i965_QuerySurfaceStatus(VADriverContextP ctx,
 
     assert(obj_surface);
 
-    /* Commit pending operations to the HW */
-    intel_batchbuffer_flush(ctx);
-
     /* Usually GEM will handle synchronization with the graphics hardware */
 #if 0
     if (obj_surface->bo) {
@@ -1643,6 +1654,8 @@ i965_Init(VADriverContextP ctx)
         i965->codec_info = &ironlake_hw_codec_info;
     else if (IS_GEN6(i965->intel.device_id))
         i965->codec_info = &gen6_hw_codec_info;
+    else if (IS_GEN7(i965->intel.device_id))
+        i965->codec_info = &gen7_hw_codec_info;
     else
         return VA_STATUS_ERROR_UNKNOWN;
 
@@ -1651,6 +1664,9 @@ i965_Init(VADriverContextP ctx)
 
     if (i965_render_init(ctx) == False)
         return VA_STATUS_ERROR_UNKNOWN;
+
+    _i965InitMutex(&i965->render_mutex);
+    i965->batch = intel_batchbuffer_new(&i965->intel, I915_EXEC_RENDER);
 
     return VA_STATUS_SUCCESS;
 }
@@ -1799,6 +1815,40 @@ i965_CreateImage(VADriverContextP ctx,
     return va_status;
 }
 
+void 
+i965_check_alloc_surface_bo(VADriverContextP ctx,
+                            struct object_surface *obj_surface,
+                            int tiled)
+{
+    struct i965_driver_data *i965 = i965_driver_data(ctx);
+
+    if (obj_surface->bo)
+        return;
+
+    if (tiled) {
+        uint32_t tiling_mode = I915_TILING_Y; /* always uses Y-tiled format */
+        unsigned long pitch;
+
+        obj_surface->bo = drm_intel_bo_alloc_tiled(i965->intel.bufmgr, 
+                                                   "vaapi surface",
+                                                   obj_surface->width, 
+                                                   obj_surface->height + obj_surface->height / 2,
+                                                   1,
+                                                   &tiling_mode,
+                                                   &pitch,
+                                                   0);
+        assert(tiling_mode == I915_TILING_Y);
+        assert(pitch == obj_surface->width);
+    } else {
+        obj_surface->bo = dri_bo_alloc(i965->intel.bufmgr,
+                                       "vaapi surface",
+                                       obj_surface->size,
+                                       0x1000);
+    }
+
+    assert(obj_surface->bo);
+}
+
 VAStatus i965_DeriveImage(VADriverContextP ctx,
                           VASurfaceID surface,
                           VAImage *out_image)        /* out */
@@ -1883,32 +1933,7 @@ VAStatus i965_DeriveImage(VADriverContextP ctx,
         }
     }
 
-    if (obj_surface->bo == NULL) {
-        if (HAS_TILED_SURFACE(i965)) {
-        
-            uint32_t tiling_mode = I915_TILING_Y;
-            unsigned long pitch;
-
-            obj_surface->bo = drm_intel_bo_alloc_tiled(i965->intel.bufmgr, 
-                                                       "vaapi surface",
-                                                       obj_surface->width, 
-                                                       obj_surface->height + obj_surface->height / 2,
-                                                       1,
-                                                       &tiling_mode,
-                                                       &pitch,
-                                                       0);
-            assert(obj_surface->bo);
-            assert(tiling_mode == I915_TILING_Y);
-            assert(pitch == obj_surface->width);
-        } else {
-            obj_surface->bo = dri_bo_alloc(i965->intel.bufmgr,
-                                           "vaapi surface",
-                                           obj_surface->size,
-                                           0x1000);
-        }
-    }
-
-    assert(obj_surface->bo);
+    i965_check_alloc_surface_bo(ctx, obj_surface, HAS_TILED_SURFACE(i965));
     va_status = i965_create_buffer_internal(ctx, 0, VAImageBufferType,
                                             obj_surface->size, 1, NULL, obj_surface->bo, &image->buf);
     if (va_status != VA_STATUS_SUCCESS)
@@ -2154,9 +2179,6 @@ i965_GetImage(VADriverContextP ctx,
         y + height > obj_image->image.height)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    /* Commit pending operations to the HW */
-    intel_batchbuffer_flush(ctx);
-
     VAStatus va_status;
     void *image_data = NULL;
 
@@ -2232,6 +2254,8 @@ i965_PutSurface(VADriverContextP ctx,
     if (!obj_surface || !obj_surface->bo)
         return VA_STATUS_SUCCESS;
 
+    _i965LockMutex(&i965->render_mutex);
+
     dri_drawable = dri_get_drawable(ctx, (Drawable)draw);
     assert(dri_drawable);
 
@@ -2299,6 +2323,8 @@ i965_PutSurface(VADriverContextP ctx,
             obj_surface->free_private_data(&obj_surface->private_data);
     }
 
+    _i965UnlockMutex(&i965->render_mutex);
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -2306,6 +2332,11 @@ VAStatus
 i965_Terminate(VADriverContextP ctx)
 {
     struct i965_driver_data *i965 = i965_driver_data(ctx);
+
+    if (i965->batch)
+        intel_batchbuffer_free(i965->batch);
+
+    _i965DestroyMutex(&i965->render_mutex);
 
     if (i965_render_terminate(ctx) == False)
         return VA_STATUS_ERROR_UNKNOWN;

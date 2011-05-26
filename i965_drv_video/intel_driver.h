@@ -11,17 +11,14 @@
 
 #include <va/va_backend.h>
 
-#if defined(__GNUC__)
-#define INLINE __inline__
-#else
-#define INLINE
-#endif
+#include "intel_compiler.h"
 
 #define BATCH_SIZE      0x80000
 #define BATCH_RESERVED  0x10
 
 #define CMD_MI                                  (0x0 << 29)
 #define CMD_2D                                  (0x2 << 29)
+#define CMD_3D                                  (0x3 << 29)
 
 #define MI_NOOP                                 (CMD_MI | 0)
 
@@ -42,6 +39,21 @@
 /* BR13 */
 #define BR13_565                                (0x1 << 24)
 #define BR13_8888                               (0x3 << 24)
+
+#define CMD_PIPE_CONTROL                        (CMD_3D | (3 << 27) | (2 << 24) | (0 << 16))
+#define CMD_PIPE_CONTROL_NOWRITE                (0 << 14)
+#define CMD_PIPE_CONTROL_WRITE_QWORD            (1 << 14)
+#define CMD_PIPE_CONTROL_WRITE_DEPTH            (2 << 14)
+#define CMD_PIPE_CONTROL_WRITE_TIME             (3 << 14)
+#define CMD_PIPE_CONTROL_DEPTH_STALL            (1 << 13)
+#define CMD_PIPE_CONTROL_WC_FLUSH               (1 << 12)
+#define CMD_PIPE_CONTROL_IS_FLUSH               (1 << 11)
+#define CMD_PIPE_CONTROL_TC_FLUSH               (1 << 10)
+#define CMD_PIPE_CONTROL_NOTIFY_ENABLE          (1 << 8)
+#define CMD_PIPE_CONTROL_GLOBAL_GTT             (1 << 2)
+#define CMD_PIPE_CONTROL_LOCAL_PGTT             (0 << 2)
+#define CMD_PIPE_CONTROL_DEPTH_CACHE_FLUSH      (1 << 0)
+
 
 struct intel_batchbuffer;
 
@@ -89,8 +101,6 @@ struct intel_driver_data
     pthread_mutex_t ctxmutex;
     int locked;
 
-    struct intel_batchbuffer *batch;
-    struct intel_batchbuffer *batch_bcs;
     dri_bufmgr *bufmgr;
 
     unsigned int has_exec2  : 1; /* Flag: has execbuffer2? */
@@ -141,6 +151,11 @@ struct intel_region
 #define PCI_CHIP_SANDYBRIDGE_S_GT	0x010A  /* Server */
 #endif
 
+#define PCI_CHIP_IVYBRIDGE_GT1          0x0152  /* Desktop */
+#define PCI_CHIP_IVYBRIDGE_GT2          0x0162
+#define PCI_CHIP_IVYBRIDGE_M_GT1        0x0156  /* Mobile */
+#define PCI_CHIP_IVYBRIDGE_M_GT2        0x0166
+#define PCI_CHIP_IVYBRIDGE_S_GT1        0x015a  /* Server */
 
 #define IS_G45(devid)           (devid == PCI_CHIP_IGD_E_G ||   \
                                  devid == PCI_CHIP_Q45_G ||     \
@@ -160,5 +175,11 @@ struct intel_region
                                  devid == PCI_CHIP_SANDYBRIDGE_M_GT2 || \
                                  devid == PCI_CHIP_SANDYBRIDGE_M_GT2_PLUS || \
                                  devid == PCI_CHIP_SANDYBRIDGE_S_GT)
+
+#define IS_GEN7(devid)          (devid == PCI_CHIP_IVYBRIDGE_GT1 ||     \
+                                 devid == PCI_CHIP_IVYBRIDGE_GT2 ||     \
+                                 devid == PCI_CHIP_IVYBRIDGE_M_GT1 ||   \
+                                 devid == PCI_CHIP_IVYBRIDGE_M_GT2 ||   \
+                                 devid == PCI_CHIP_IVYBRIDGE_S_GT1)
 
 #endif /* _INTEL_DRIVER_H_ */

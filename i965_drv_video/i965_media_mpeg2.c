@@ -516,14 +516,7 @@ i965_media_mpeg2_surface_setup(VADriverContextP ctx,
     int w = obj_surface->width;
     int h = obj_surface->height;
 
-    if (obj_surface->bo == NULL) {
-        struct i965_driver_data *i965 = i965_driver_data(ctx);  
-        
-        obj_surface->bo = dri_bo_alloc(i965->intel.bufmgr,
-                                       "vaapi surface",
-                                       obj_surface->size,
-                                       0x1000);
-    }
+    i965_check_alloc_surface_bo(ctx, obj_surface, 0);
 
     if (picture_structure == MPEG_FRAME) {
 	i965_media_mpeg2_surface_state(ctx, base_index + 0, obj_surface,
@@ -882,8 +875,9 @@ i965_media_mpeg2_objects(VADriverContextP ctx,
                          struct decode_state *decode_state,
                          struct i965_media_context *media_context)
 {
-    int i, j;
+    struct intel_batchbuffer *batch = media_context->base.batch;
     VASliceParameterBufferMPEG2 *slice_param;
+    int i, j;
 
     for (j = 0; j < decode_state->num_slice_params; j++) {
         assert(decode_state->slice_params[j] && decode_state->slice_params[j]->buffer);
@@ -893,20 +887,20 @@ i965_media_mpeg2_objects(VADriverContextP ctx,
         for (i = 0; i < decode_state->slice_params[j]->num_elements; i++) {
             assert(slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL);
 
-            BEGIN_BATCH(ctx, 6);
-            OUT_BATCH(ctx, CMD_MEDIA_OBJECT | 4);
-            OUT_BATCH(ctx, 0);
-            OUT_BATCH(ctx, slice_param->slice_data_size - (slice_param->macroblock_offset >> 3));
-            OUT_RELOC(ctx, decode_state->slice_datas[j]->bo, 
+            BEGIN_BATCH(batch, 6);
+            OUT_BATCH(batch, CMD_MEDIA_OBJECT | 4);
+            OUT_BATCH(batch, 0);
+            OUT_BATCH(batch, slice_param->slice_data_size - (slice_param->macroblock_offset >> 3));
+            OUT_RELOC(batch, decode_state->slice_datas[j]->bo, 
                       I915_GEM_DOMAIN_SAMPLER, 0, 
                       slice_param->slice_data_offset + (slice_param->macroblock_offset >> 3));
-            OUT_BATCH(ctx, 
+            OUT_BATCH(batch, 
                       ((slice_param->slice_horizontal_position << 24) |     
                        (slice_param->slice_vertical_position << 16) |
                        (127 << 8) | 
                        (slice_param->macroblock_offset & 0x7)));
-            OUT_BATCH(ctx, slice_param->quantiser_scale_code << 24);
-            ADVANCE_BATCH(ctx);          
+            OUT_BATCH(batch, slice_param->quantiser_scale_code << 24);
+            ADVANCE_BATCH(batch);          
             slice_param++;
         }
     }

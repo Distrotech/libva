@@ -163,6 +163,11 @@ static void* putsurface_thread(void *data)
         pixmap = pixmap_thread1;
         context = context_thread1;
     }
+
+    if (put_pixmap)
+        draw = pixmap;
+    else
+        draw = win;
 #endif
  
     printf("vaPutSurface into a Window directly\n\n");
@@ -188,12 +193,18 @@ static void* putsurface_thread(void *data)
                                     (test_clip==0)?0:2,
                                     display_field);
 #else
+        if (check_event) {
+            pthread_mutex_lock(&gmutex);
+        }
         vaStatus = vaPutSurface(va_dpy, surface_id, draw,
                                 0,0,surface_width,surface_height,
                                 0,0,width,height,
                                 (test_clip==0)?NULL:&cliprects[0],
                                 (test_clip==0)?0:2,
                                 display_field);
+        if (check_event) {
+            pthread_mutex_unlock(&gmutex);
+        }
 #endif 
 
         CHECK_VASTATUS(vaStatus,"vaPutSurface");

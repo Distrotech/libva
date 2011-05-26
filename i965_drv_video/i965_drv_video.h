@@ -33,8 +33,8 @@
 #include <va/va.h>
 #include <va/va_backend.h>
 
+#include "i965_mutext.h"
 #include "object_heap.h"
-
 #include "intel_driver.h"
 
 #define I965_MAX_PROFILES                       11
@@ -116,6 +116,7 @@ struct hw_context
                 union codec_state *codec_state,
                 struct hw_context *hw_context);
     void (*destroy)(void *);
+    struct intel_batchbuffer *batch;
 };
 
 struct object_context 
@@ -214,8 +215,11 @@ struct i965_driver_data
     struct object_heap buffer_heap;
     struct object_heap image_heap;
     struct object_heap subpic_heap;
-    struct i965_render_state render_state;
     struct hw_codec_info *codec_info;
+
+    _I965Mutex render_mutex;
+    struct intel_batchbuffer *batch;
+    struct i965_render_state render_state;
     void *pp_context;
 };
 
@@ -244,5 +248,10 @@ i965_driver_data(VADriverContextP ctx)
 {
     return (struct i965_driver_data *)(ctx->pDriverData);
 }
+
+void 
+i965_check_alloc_surface_bo(VADriverContextP ctx,
+                            struct object_surface *obj_surface,
+                            int tiled);
 
 #endif /* _I965_DRV_VIDEO_H_ */
