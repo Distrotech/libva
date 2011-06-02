@@ -232,8 +232,8 @@ gen6_vme_output_buffer_setup(VADriverContextP ctx,
     struct i965_surface_state *ss;
     dri_bo *bo;
     VAEncSequenceParameterBufferH264 *pSequenceParameter = (VAEncSequenceParameterBufferH264 *)encode_state->seq_param->buffer;
-    VAEncSliceParameterBuffer *pSliceParameter = (VAEncSliceParameterBuffer *)encode_state->slice_params[0]->buffer;
-    int is_intra = pSliceParameter->slice_flags.bits.is_intra;
+    VAEncSliceParameterBufferH264Ext *pSliceParameter = (VAEncSliceParameterBufferH264Ext *)encode_state->slice_params[0]->buffer;
+    int is_intra = pSliceParameter->slice_type == SLICE_TYPE_I;
     int width_in_mbs = pSequenceParameter->picture_width_in_mbs;
     int height_in_mbs = pSequenceParameter->picture_height_in_mbs;
     int num_entries;
@@ -295,7 +295,7 @@ static VAStatus gen6_vme_surface_setup(VADriverContextP ctx,
     unsigned int *binding_table;
     dri_bo *bo = vme_context->binding_table.bo;
     int i;
-    VAEncPictureParameterBufferH264 *pPicParameter = (VAEncPictureParameterBufferH264 *)encode_state->pic_param->buffer;
+    VAEncPictureParameterBufferH264Ext *pPicParameter = (VAEncPictureParameterBufferH264Ext *)encode_state->pic_param->buffer;
 
     /*Setup surfaces state*/
     /* current picture for encoding */
@@ -306,13 +306,15 @@ static VAStatus gen6_vme_surface_setup(VADriverContextP ctx,
 
     if ( ! is_intra ) {
         /* reference 0 */
-        obj_surface = SURFACE(pPicParameter->reference_picture);
+        obj_surface = SURFACE(pPicParameter->ReferenceFrames[0].picture_id);
         assert(obj_surface);
-        gen6_vme_source_surface_state(ctx, 1, obj_surface, gen6_encoder_context);
-        /* reference 1, FIXME: */
-        // obj_surface = SURFACE(pPicParameter->reference_picture);
-        // assert(obj_surface);
-        //gen6_vme_source_surface_state(ctx, 2, obj_surface);
+		if ( obj_surface->bo != NULL)
+			gen6_vme_source_surface_state(ctx, 1, obj_surface, gen6_encoder_context);
+		/* reference 1 */
+		obj_surface = SURFACE(pPicParameter->ReferenceFrames[1].picture_id);
+		assert(obj_surface);
+		if ( obj_surface->bo != NULL ) 
+			gen6_vme_source_surface_state(ctx, 2, obj_surface, gen6_encoder_context);
     }
 
     /* VME output */
@@ -622,9 +624,9 @@ static void gen6_vme_pipeline_programing(VADriverContextP ctx,
                                          struct gen6_encoder_context *gen6_encoder_context)
 {
     struct intel_batchbuffer *batch = gen6_encoder_context->base.batch;
-    VAEncSliceParameterBuffer *pSliceParameter = (VAEncSliceParameterBuffer *)encode_state->slice_params[0]->buffer;
+    VAEncSliceParameterBufferH264Ext *pSliceParameter = (VAEncSliceParameterBufferH264Ext *)encode_state->slice_params[0]->buffer;
     VAEncSequenceParameterBufferH264 *pSequenceParameter = (VAEncSequenceParameterBufferH264 *)encode_state->seq_param->buffer;
-    int is_intra = pSliceParameter->slice_flags.bits.is_intra;
+    int is_intra = pSliceParameter->slice_type == SLICE_TYPE_I;
     int width_in_mbs = pSequenceParameter->picture_width_in_mbs;
     int height_in_mbs = pSequenceParameter->picture_height_in_mbs;
     int emit_new_state = 1, object_len_in_bytes;
@@ -677,8 +679,8 @@ static VAStatus gen6_vme_prepare(VADriverContextP ctx,
                                  struct gen6_encoder_context *gen6_encoder_context)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VAEncSliceParameterBuffer *pSliceParameter = (VAEncSliceParameterBuffer *)encode_state->slice_params[0]->buffer;
-    int is_intra = pSliceParameter->slice_flags.bits.is_intra;
+    VAEncSliceParameterBufferH264Ext *pSliceParameter = (VAEncSliceParameterBufferH264Ext *)encode_state->slice_params[0]->buffer;
+    int is_intra = pSliceParameter->slice_type == SLICE_TYPE_I;
 	
     /*Setup all the memory object*/
     gen6_vme_surface_setup(ctx, encode_state, is_intra, gen6_encoder_context);
