@@ -1402,8 +1402,10 @@ typedef struct _VAEncPictureParameterBufferH264Ext
             unsigned int idr_pic_flag             : 1;
             unsigned int reference_pic_flag       : 1;  /* nal_ref_idc != 0 */
             unsigned int entropy_coding_mode_flag : 1;  /* CAVLC/CABAC */
+            unsigned int weighted_pred_flag       : 1; 
             unsigned int weighted_bipred_idc      : 2;  /* (0..2) */
             unsigned int transform_8x8_mode_flag  : 1;
+            unsigned int deblocking_filter_control_present_flag : 1;
         } bits;
 
         unsigned int value;
