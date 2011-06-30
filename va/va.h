@@ -523,9 +523,9 @@ typedef enum
     VAEncH264SEIBufferType		= 26,
     VAEncMiscParameterBufferType	= 27,
 
-    VAEncSequenceParameterBufferH264ExtType = 28,
-    VAEncPictureParameterBufferH264ExtType  = 29,
-    VAEncSliceParameterBufferH264ExtType    = 30,
+    VAEncSequenceParameterBufferExtType = 28,
+    VAEncPictureParameterBufferExtType  = 29,
+    VAEncSliceParameterBufferExtType    = 30,
     VAEncDecRefPicMarkingBufferH264Type     = 31,
 
     /* New buffer types:
