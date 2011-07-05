@@ -121,7 +121,7 @@ gen6_mfd_avc_frame_store_index(VADriverContextP ctx,
             struct object_surface *obj_surface = SURFACE(ref_pic->picture_id);
             
             assert(obj_surface);
-            i965_check_alloc_surface_bo(ctx, obj_surface, 1);
+            i965_check_alloc_surface_bo(ctx, obj_surface, 1, VA_FOURCC('N', 'V', '1', '2'));
 
             for (frame_idx = 0; frame_idx < ARRAY_ELEMS(gen6_mfd_context->reference_surface); frame_idx++) {
                 for (j = 0; j < ARRAY_ELEMS(gen6_mfd_context->reference_surface); j++) {
@@ -1042,7 +1042,7 @@ gen6_mfd_avc_decode_init(VADriverContextP ctx,
     obj_surface->flags &= ~SURFACE_REF_DIS_MASK;
     obj_surface->flags |= (pic_param->pic_fields.bits.reference_pic_flag ? SURFACE_REFERENCED : 0);
     gen6_mfd_init_avc_surface(ctx, pic_param, obj_surface);
-    i965_check_alloc_surface_bo(ctx, obj_surface, 1);
+    i965_check_alloc_surface_bo(ctx, obj_surface, 1, VA_FOURCC('N','V','1','2'));
 
     dri_bo_unreference(gen6_mfd_context->post_deblocking_output.bo);
     gen6_mfd_context->post_deblocking_output.bo = obj_surface->bo;
@@ -1182,7 +1182,7 @@ gen6_mfd_mpeg2_decode_init(VADriverContextP ctx,
     if (obj_surface && obj_surface->bo)
         gen6_mfd_context->reference_surface[1].surface_id = pic_param->backward_reference_picture;
     else
-        gen6_mfd_context->reference_surface[1].surface_id = pic_param->forward_reference_picture;
+        gen6_mfd_context->reference_surface[1].surface_id = gen6_mfd_context->reference_surface[0].surface_id;
 
     /* must do so !!! */
     for (i = 2; i < ARRAY_ELEMS(gen6_mfd_context->reference_surface); i++)
@@ -1191,7 +1191,7 @@ gen6_mfd_mpeg2_decode_init(VADriverContextP ctx,
     /* Current decoded picture */
     obj_surface = SURFACE(decode_state->current_render_target);
     assert(obj_surface);
-    i965_check_alloc_surface_bo(ctx, obj_surface, 1);
+    i965_check_alloc_surface_bo(ctx, obj_surface, 1, VA_FOURCC('N','V','1','2'));
 
     dri_bo_unreference(gen6_mfd_context->pre_deblocking_output.bo);
     gen6_mfd_context->pre_deblocking_output.bo = obj_surface->bo;
@@ -1303,15 +1303,24 @@ gen6_mfd_mpeg2_bsd_object(VADriverContextP ctx,
 {
     struct intel_batchbuffer *batch = gen6_mfd_context->base.batch;
     unsigned int width_in_mbs = ALIGN(pic_param->horizontal_size, 16) / 16;
-    unsigned int height_in_mbs = ALIGN(pic_param->vertical_size, 16) / 16;
-    int mb_count;
+    int mb_count, vpos0, hpos0, vpos1, hpos1, is_field_pic = 0;
 
-    if (next_slice_param == NULL)
-        mb_count = width_in_mbs * height_in_mbs - 
-            (slice_param->slice_vertical_position * width_in_mbs + slice_param->slice_horizontal_position);
-    else
-        mb_count = (next_slice_param->slice_vertical_position * width_in_mbs + next_slice_param->slice_horizontal_position) - 
-            (slice_param->slice_vertical_position * width_in_mbs + slice_param->slice_horizontal_position);
+    if (pic_param->picture_coding_extension.bits.picture_structure == MPEG_TOP_FIELD ||
+        pic_param->picture_coding_extension.bits.picture_structure == MPEG_BOTTOM_FIELD)
+        is_field_pic = 1;
+
+    vpos0 = slice_param->slice_vertical_position / (1 + is_field_pic);
+    hpos0 = slice_param->slice_horizontal_position;
+
+    if (next_slice_param == NULL) {
+        vpos1 = ALIGN(pic_param->vertical_size, 16) / 16 / (1 + is_field_pic);
+        hpos1 = 0;
+    } else {
+        vpos1 = next_slice_param->slice_vertical_position / (1 + is_field_pic);
+        hpos1 = next_slice_param->slice_horizontal_position;
+    }
+
+    mb_count = (vpos1 * width_in_mbs + hpos1) - (vpos0 * width_in_mbs + hpos0);
 
     BEGIN_BCS_BATCH(batch, 5);
     OUT_BCS_BATCH(batch, MFD_MPEG2_BSD_OBJECT | (5 - 2));
@@ -1320,8 +1329,8 @@ gen6_mfd_mpeg2_bsd_object(VADriverContextP ctx,
     OUT_BCS_BATCH(batch, 
                   slice_param->slice_data_offset + (slice_param->macroblock_offset >> 3));
     OUT_BCS_BATCH(batch,
-                  slice_param->slice_horizontal_position << 24 |
-                  slice_param->slice_vertical_position << 16 |
+                  hpos0 << 24 |
+                  vpos0 << 16 |
                   mb_count << 8 |
                   (next_slice_param == NULL) << 5 |
                   (next_slice_param == NULL) << 3 |
@@ -1355,7 +1364,6 @@ gen6_mfd_mpeg2_decode_picture(VADriverContextP ctx,
     gen6_mfd_mpeg2_pic_state(ctx, decode_state, gen6_mfd_context);
     gen6_mfd_mpeg2_qm_state(ctx, decode_state, gen6_mfd_context);
 
-    assert(decode_state->num_slice_params == 1);
     for (j = 0; j < decode_state->num_slice_params; j++) {
         assert(decode_state->slice_params && decode_state->slice_params[j]->buffer);
         slice_param = (VASliceParameterBufferMPEG2 *)decode_state->slice_params[j]->buffer;
@@ -1502,7 +1510,7 @@ gen6_mfd_vc1_decode_init(VADriverContextP ctx,
     obj_surface = SURFACE(decode_state->current_render_target);
     assert(obj_surface);
     gen6_mfd_init_vc1_surface(ctx, pic_param, obj_surface);
-    i965_check_alloc_surface_bo(ctx, obj_surface, 1);
+    i965_check_alloc_surface_bo(ctx, obj_surface, 1, VA_FOURCC('N','V','1','2'));
 
     dri_bo_unreference(gen6_mfd_context->post_deblocking_output.bo);
     gen6_mfd_context->post_deblocking_output.bo = obj_surface->bo;

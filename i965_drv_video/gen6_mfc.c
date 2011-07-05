@@ -1007,7 +1007,7 @@ static VAStatus gen6_mfc_avc_prepare(VADriverContextP ctx,
     /* Setup current frame and current direct mv buffer*/
     obj_surface = SURFACE(pPicParameter->CurrPic.picture_id);
     assert(obj_surface);
-    i965_check_alloc_surface_bo(ctx, obj_surface, 1);
+    i965_check_alloc_surface_bo(ctx, obj_surface, 1, VA_FOURCC('N','V','1','2'));
     if ( obj_surface->private_data == NULL) {
         gen6_avc_surface = calloc(sizeof(struct gen6_mfc_avc_surface_aux), 1);
         gen6_avc_surface->dmv_top = 
@@ -1028,8 +1028,8 @@ static VAStatus gen6_mfc_avc_prepare(VADriverContextP ctx,
     gen6_avc_surface = (struct gen6_mfc_avc_surface_aux*) obj_surface->private_data;
     mfc_context->direct_mv_buffers[NUM_MFC_DMV_BUFFERS - 2].bo = gen6_avc_surface->dmv_top;
     mfc_context->direct_mv_buffers[NUM_MFC_DMV_BUFFERS - 1].bo = gen6_avc_surface->dmv_bottom;
-	dri_bo_reference(gen6_avc_surface->dmv_top);
-	dri_bo_reference(gen6_avc_surface->dmv_bottom);
+    dri_bo_reference(gen6_avc_surface->dmv_top);
+    dri_bo_reference(gen6_avc_surface->dmv_bottom);
 
     mfc_context->post_deblocking_output.bo = obj_surface->bo;
     dri_bo_reference(mfc_context->post_deblocking_output.bo);
