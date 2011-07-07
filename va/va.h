@@ -537,10 +537,11 @@ typedef enum
     VAEncPackedSequenceParameterBufferType  = 32, /* byte-buffer with SPS(+VUI) header */
     VAEncPackedPictureParameterBufferType   = 33, /* byte-buffer with PPS header */
     VAEncPackedSliceParameterBufferType	    = 34, /* VAEncPackedSliceHeaderBufferH264 */
-    VAProcPipelineParameterBufferType	= 50,
-    VAProcFilterParameterBufferType	= 51,
-	VAProcFilterScaleParameterBufferType = 52,
-	VAProcFilterStrengthRangeType = 53, 
+    VAProcPipelineParameterBufferType   = 60,
+    VAProcInputParameterBufferType      = 61,
+    VAProcFilterBaseParameterBufferType     = 62, /* general video processing filter */
+    VAProcFilterDeinterlacingParameterBufferType = 63,
+    VAProcFilterProcAmpParameterBufferType = 64,
     VABufferTypeMax                         = 0xff
 } VABufferType;
 
@@ -2212,82 +2213,136 @@ VAStatus vaSetDisplayAttributes (
     int num_attributes
 );
 
+#define VA_PROC_PIPELINE_MAX_NUM_FILTERS    32
+
 typedef enum
 {
-    VAProcFilterNone			  = 0,
-    VAProcFilterColorSpaceConvert = 1,
-    VAProcFilterDering			  = 2,
-    VAProcFilterDeblocking		  = 3,
-    VAProcFilterNoiseReduction	  = 4,
-    VAProcFilterSharpening		  = 5,
-    VAProcFilterBrightness		  = 6,
-    VAProcFilterContrast		  = 7,
-    VAProcFilterSaturation		  = 8,
-    VAProcFilterHue			      = 9,
-    VAProcFilterColorEnhancement  = 10,
-	VAProcFilterScale             = 11,
-    VAProcFilterDeinterlace       = 12
+    VAProcFilterNone            = 0,
+    VAProcFilterDering          = 1,
+    VAProcFilterDeblocking      = 2,
+    VAProcFilterNoiseReduction  = 3,
+    VAProcFilterDeinterlacing   = 4,
+    VAProcFilterSharpening      = 5,
+    VAProcFilterColorEnhancement    = 6,
+    VAProcFilterProcAmp         = 7,
+    VAProcFilterComposition     = 8,
+    VAProcFilterFrameRateConversion = 9
 } VAProcFilterType;
 
-#define VA_PROC_PIPELINE_MAX_NUM_FILTERS	32
+typedef enum
+{
+    VAProcColorPrimariesUnknown     = 0,
+    VAProcColorPrimariesBT709       = 1,
+    VAProcColorPrimariesBT470M      = 2,
+    VAProcColorPrimariesBT470BG     = 3,
+    VAProcColorPrimariesBT601       = 4,
+    VAProcColorPrimariesSMPTE240M   = 5,
+    VAProcColorPrimariesGenericFilm = 6
+} VAProcColorPrimaries;
+
+typedef enum
+{
+    VAProcStreamPrimaryVideo        = 1,
+    VAProcStreamSecondaryVideo      = 2,
+    VAProcStreamSubpicture          = 3
+} VAProcStreamType;
 
 typedef struct _VAProcPipelineParameterBuffer
 {
     VAProcFilterType filter_pipeline[VA_PROC_PIPELINE_MAX_NUM_FILTERS];
-    VASurfaceID input_surface; 
+    VAProcColorPrimaries output_color_primaries;
+    /*
+     * VPP only affects pixels in the output region and fills the rest of the
+     * output surface with a background color
+     */
+    VARectangle output_region;  
+    unsigned int output_background_color;
 } VAProcPipelineParameterBuffer;
 
+typedef struct _VAProcInputParameterBuffer
+{
+    VASurfaceID surface;
+    VARectangle region;  /* region within the surface to be processed */    
+    VAProcColorPrimaries color_primaries;
+    VAProcStreamType stream_type;
+} VAProcInputParameterBuffer;
 
-typedef struct _VAProcFilterParameterBuffer
+typedef struct _VAProcFilterBaseParameterBuffer
 {
     VAProcFilterType filter;
-    int strength;
-} VAProcFilterParameterBuffer;
+    float value;
+} VAProcFilterBaseParameterBuffer;
+
+typedef struct _VAProcFilterProcAmpParameterBuffer
+{
+    float brightness;
+    float contrast;
+    float saturation;
+    float hue;
+} VAProcFilterProcAmpParameterBuffer;
 
 typedef enum
 {
-    VAProcColorSpaceBT601		= 0,
-    VAProcColorSpaceBT709		= 1,
-    VAProcColorSpaceSMPTE240	= 2,
-    VAProcColorSpaceSRGB		= 3
-} VAProcColorSpaceType;
+    VAProcDeinterlacingBob      = 1,
+    VAProcDeinterlacingWeave        = 2,
+    VAProcDeinterlacingMotionAdaptive   = 3,
+    VAProcDeinterlacingMotionCompensated= 4
+} VAProcDeinterlacingMode;
 
-typedef struct _VAProcFilterColorSpaceConvertParameterBuffer
+typedef struct _VAProcFilterDeinterlacingParameterBuffer
 {
-    VAProcFilterType filter;  // VAProcFilterColorSpaceConvert
-    VAProcColorSpaceType in;
-    VAProcColorSpaceType out;
-} VAProcFilterColorSpaceConvertParameterBuffer;
+    VAProcDeinterlacingMode mode;
+    VASurfaceID forward_reference;
+    VASurfaceID backward_reference;
+} VAProcFilterDeinterlacingParameterBuffer;
 
-typedef struct _VAProcFilterScaleParameterBuffer
-{
-    VAProcFilterType filter; // VAProcFilterScale
-    VARectangle in; // described in Region Of Interest. real width and height defined by in VASurface 
-    VARectangle out; // described out Region Of Interest. real width and height defined by out VASurface 
-
-} VAProcFilterScaleParameterBuffer;   
-
-typedef struct _VAProcFilterStrengthRange
-{
-    int min;
-    int max;
-    int defaultValue;
-} VAProcFilterStrengthRange;
-
-typedef struct _VAProcFilterPipeline
+typedef struct _VAProcPipelineCap
 {
     VAProcFilterType filter_pipeline[VA_PROC_PIPELINE_MAX_NUM_FILTERS];
-    unsigned char bypass[VA_PROC_PIPELINE_MAX_NUM_FILTERS]; /* 1 means filter can be by-passed, 0 means it can't be by-passed */
-    VAProcFilterStrengthRange strength[VA_PROC_PIPELINE_MAX_NUM_FILTERS];
-} VAProcFilterPipeline;
+    /*
+     * 1 means filter can be by-passed, 0 means it can't
+     */
+    unsigned char bypass[VA_PROC_PIPELINE_MAX_NUM_FILTERS];
+} VAProcPipelineCap;
+
+typedef struct _VAProcFilterValueRange
+{
+    float min;
+    float max;
+    float default_value;
+    float step;
+} VAProcFilterValueRange;
+
+typedef struct _VAProcFilterCapBase
+{
+    VAProcFilterValueRange range;
+} VAProcFilterCapBase;
+
+typedef struct _VAProcFilterCapProcAmp
+{
+    VAProcFilterValueRange brightness_range;
+    VAProcFilterValueRange contrast_range;
+    VAProcFilterValueRange saturation_range;
+    VAProcFilterValueRange hue_range;
+} VAProcFilterCapProcAmp;
 
 /* 
- * Query video processing pipeline 
+ * Query video processing pipeline capabilities
  */
-VAStatus vaQueryVideoProcPipeline (
+VAStatus vaQueryVideoProcPipelineCap (
     VADisplay dpy,
     VAContextID context,
-    VAProcFilterPipeline *pipeline	/* out */
+    VAProcPipelineCap *pipeline_cap   /* out */
+);
+
+/* 
+ * Query video processing filter capabilities 
+ */
+VAStatus vaQueryVideoProcFilterCap (
+    VADisplay dpy,
+    VAContextID context,
+    VAProcFilterType filter,
+    void *cap   /* out */
 );
 #ifdef __cplusplus
 }
