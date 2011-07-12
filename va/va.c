@@ -1389,3 +1389,33 @@ VAStatus vaUnlockSurface(VADisplay dpy,
 
   return ctx->vtable->vaUnlockSurface( ctx, surface );
 }
+
+/* 
+ * Query video processing pipeline 
+ */
+VAStatus vaQueryVideoProcPipelineCap (
+    VADisplay dpy,
+    VAContextID context,
+    VAProcPipelineCap *pipeline_cap     /* out */
+)
+{
+  VADriverContextP ctx;
+  CHECK_DISPLAY(dpy);
+  ctx = CTX(dpy);
+
+  return ctx->vtable->vaQueryVideoProcPipelineCap( ctx, context, pipeline_cap );
+}
+
+VAStatus vaQueryVideoProcFilterCap (
+    VADisplay dpy,
+    VAContextID context,
+    VAProcFilterType filter,
+    void *cap   /* out */
+)
+{
+  VADriverContextP ctx;
+  CHECK_DISPLAY(dpy);
+  ctx = CTX(dpy);
+
+  return ctx->vtable->vaQueryVideoProcFilterCap( ctx, context, filter, cap );
+}

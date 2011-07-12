@@ -377,6 +377,19 @@ struct VADriverVTable
 		VADriverContextP ctx,
                 VASurfaceID surface
         );
+
+        VAStatus (*vaQueryVideoProcPipelineCap) (
+		VADriverContextP ctx,
+                VAContextID context,
+                VAProcPipelineCap *pipeline_cap	/* out */
+        );
+
+        VAStatus (*vaQueryVideoProcFilterCap) (
+		VADriverContextP ctx,
+                VAContextID context,
+                VAProcFilterType filter,
+                void *cap   /* out */
+        );
 };
 
 struct VADriverContext
