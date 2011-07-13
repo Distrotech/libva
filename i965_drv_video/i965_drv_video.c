@@ -1454,6 +1454,7 @@ i965_encoder_render_picture(VADriverContextP ctx,
             
         case VAEncPackedSliceParameterBufferType:
             vaStatus = I965_RENDER_ENCODE_BUFFER(packed_slice_header);
+            break;
 
         default:
             vaStatus = VA_STATUS_ERROR_UNSUPPORTED_BUFFERTYPE;
