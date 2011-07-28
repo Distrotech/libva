@@ -45,6 +45,15 @@
 #define I965_MAX_DISPLAY_ATTRIBUTES             4
 #define I965_STR_VENDOR                         "i965 Driver 0.1"
 
+#define I965_SURFACE_IMAGE      0
+#define I965_SURFACE_SURFACE    1
+
+struct i965_surface
+{
+    VAGenericID id;
+    int flag;
+};
+
 struct i965_kernel 
 {
     char *name;

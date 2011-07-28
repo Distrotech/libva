@@ -15,12 +15,18 @@ INTEL_PP_G4B_GEN5 = 		\
 	nv12_avs_nv12.g4b.gen5	\
 	nv12_dndi_nv12.g4b.gen5	\
 	nv12_load_save_nv12.g4b.gen5	\
+	nv12_load_save_pl3.g4b.gen5	\
+	pl3_load_save_nv12.g4b.gen5	\
+	pl3_load_save_pl3.g4b.gen5	\
 	nv12_scaling_nv12.g4b.gen5
 
 INTEL_PP_G6B =	 		\
 	nv12_avs_nv12.g6b	\
 	nv12_dndi_nv12.g6b	\
 	nv12_load_save_nv12.g6b	\
+	nv12_load_save_pl3.g6b	\
+	pl3_load_save_nv12.g6b	\
+	pl3_load_save_pl3.g6b	\
 	nv12_scaling_nv12.g6b
 
 INTEL_PP_ASM =				\
