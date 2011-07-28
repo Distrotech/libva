@@ -22,15 +22,14 @@
 
 bin_PROGRAMS = putsurface
 
-AM_CFLAGS = -I$(top_srcdir)/va -I$(top_srcdir)/src/x11
+INCLUDES = -I$(top_srcdir)
 
 TEST_LIBS = $(top_builddir)/va/$(libvabackendlib) -lpthread
 
 putsurface_LDADD = $(TEST_LIBS)
 putsurface_SOURCES = putsurface_x11.c
 
-EXTRA_DIST = loadsurface.h
-
+EXTRA_DIST = putsurface_common.c
 
 valgrind:	$(bin_PROGRAMS)
 	for a in $(bin_PROGRAMS); do \

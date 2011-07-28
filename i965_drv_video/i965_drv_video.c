@@ -2657,6 +2657,9 @@ VAStatus i965_QueryVideoProcFilterCap(
     return VA_STATUS_SUCCESS;
 }
 
+VAStatus DLL_EXPORT
+VA_DRIVER_INIT_FUNC(VADriverContextP ctx);
+
 VAStatus 
 VA_DRIVER_INIT_FUNC(  VADriverContextP ctx )
 {
