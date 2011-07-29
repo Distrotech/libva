@@ -1419,3 +1419,18 @@ VAStatus vaQueryVideoProcFilterCap (
 
   return ctx->vtable->vaQueryVideoProcFilterCap( ctx, context, filter, cap );
 }
+
+VAStatus vaQueryVideoProcReferenceFramesCap (
+    VADisplay dpy,
+    VAContextID context,
+    unsigned int *num_forward_reference, /* out */
+    unsigned int *num_backward_reference /* out */
+)
+
+{
+  VADriverContextP ctx;
+  CHECK_DISPLAY(dpy);
+  ctx = CTX(dpy);
+
+  return ctx->vtable->vaQueryVideoProcReferenceFramesCap( ctx, context, num_forward_reference, num_backward_reference );
+}

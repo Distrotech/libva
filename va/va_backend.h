@@ -390,6 +390,13 @@ struct VADriverVTable
                 VAProcFilterType filter,
                 void *cap   /* out */
         );
+
+        VAStatus (*vaQueryVideoProcReferenceFramesCap) (
+		VADriverContextP ctx,
+                VAContextID context,
+                unsigned int *num_forward_reference, /* out */
+                unsigned int *num_backward_reference /* out */
+        );
 };
 
 struct VADriverContext
