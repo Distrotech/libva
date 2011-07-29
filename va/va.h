@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2009 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2007-2011 Intel Corporation. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -24,7 +24,7 @@
 /*
  * Video Acceleration (VA) API Specification
  *
- * Rev. 0.30
+ * Rev. 0.32.2
  * <jonathan.bian@intel.com>
  *
  * Revision History:
@@ -62,6 +62,9 @@
  * rev 0.32.0 (01/13/2011 Xiang Haihao) - Add profile into VAPictureParameterBufferVC1
  *                                        update VAAPI to 0.32.0
  * rev 0.32.1 (05/04/2011)              - Linux VA encoding API extension proposal
+ *
+ *  
+ * rev 0.32.2 (07/05/2011 Jonathan Bian/Andrey Yakovenko) - Video Processing interface
  *
  * Acknowledgements:
  *  Some concepts borrowed from XvMC and XvImage.
@@ -224,9 +227,13 @@ VAPrivFunc vaGetLibFunc (
     const char *func
 );
 
+#define VA_ENUM_MAX    16384
+
+
 /* Currently defined profiles */
 typedef enum
 {
+    VAProfileNone = -1, /* to be used for post-processing etc. */
     VAProfileMPEG2Simple		= 0,
     VAProfileMPEG2Main			= 1,
     VAProfileMPEG4Simple		= 2,
@@ -240,12 +247,11 @@ typedef enum
     VAProfileVC1Advanced		= 10,
     VAProfileH263Baseline		= 11,
     VAProfileJPEGBaseline               = 12,
-    VAProfileH264ConstrainedBaseline = 13,
-    VAProfileNone = 100 /* to be used for post-processing etc. */
+    VAProfileH264ConstrainedBaseline    = 13,
+    VAProfileMax			= VA_ENUM_MAX
 } VAProfile;
 
 /* 
- *  Currently defined entrypoints 
  */
 typedef enum
 {
@@ -256,7 +262,8 @@ typedef enum
     VAEntrypointDeblocking	= 5,
     VAEntrypointEncSlice	= 6,	/* slice level encode */
     VAEntrypointEncPicture 	= 7,	/* pictuer encode, JPEG, etc */
-    VAEntrypointVideoProc	= 8	/* video pre/post processing */
+    VAEntrypointVideoProc	= 8,	/* video pre/post processing */
+    VAEntrypointMax		= VA_ENUM_MAX
 } VAEntrypoint;
 
 /* Currently defined configuration attribute types */
@@ -267,7 +274,12 @@ typedef enum
     VAConfigAttribSpatialClipping	= 2,
     VAConfigAttribIntraResidual		= 3,
     VAConfigAttribEncryption		= 4,
-    VAConfigAttribRateControl		= 5
+    VAConfigAttribStartCodeAndEPB       = 5,
+    VAConfigAttribRateControl           = 30, /*encode related attributes starting here */
+    VAConfigAttribEncHeaderPacking      = 31,
+    VAConfigAttribEncInterlaced         = 32,
+    VAConifgAttribEncSliceStructure     = 33,
+    VAConfigAttribTypeMax		= VA_ENUM_MAX
 } VAConfigAttribType;
 
 /*
@@ -285,13 +297,36 @@ typedef struct _VAConfigAttrib {
 #define VA_RT_FORMAT_YUV420	0x00000001	
 #define VA_RT_FORMAT_YUV422	0x00000002
 #define VA_RT_FORMAT_YUV444	0x00000004
+#define VA_RT_FORMAT_RGB        0x00000010
 #define VA_RT_FORMAT_PROTECTED	0x80000000
+
+/* attribute value for VAConfigAttribStartCodeAndEPB */
+#define VA_STARTCODE_AND_EPB_NO_SKIP   0x00000000 /* include start code and EPB when setting up slice params */
+#define VA_STARTCODE_AND_EBP_SKIP      0x00000001 /* skip start code and EPB when setting up slice params */
 
 /* attribute value for VAConfigAttribRateControl */
 #define VA_RC_NONE	0x00000001	
 #define VA_RC_CBR	0x00000002	
 #define VA_RC_VBR	0x00000004	
 #define VA_RC_VCM	0x00000008 /* video conference mode */
+
+/* attribute value for VAConfigAttribEncHeaderPacking */
+#define VA_ENC_HEADER_PACKING_NONE      0x00000000
+#define VA_ENC_HEADER_PACKING_SPS       0x00000001
+#define VA_ENC_HEADER_PACKING_PPS       0x00000002
+#define VA_ENC_HEADER_PACKING_SLICE     0x00000004
+
+/* attribute value for VAConfigAttribEncInterlaced */
+#define VA_ENC_INTERLACED_NONE          0x00000000 /* no interlface coding support */
+#define VA_ENC_INTERLACED_FRAME         0x00000001 /* interlace frame coding */
+#define VA_ENC_INTERLACED_FIELD         0x00000002 /* interlace field coding */
+#define VA_ENC_INTERLACED_MBAFF         0x00000004 /* Macroblock Adaptive Frame Field */
+#define VA_ENC_INTERLACED_PIC_AFF       0x00000008 /* Picture Adaptive Frame Field */
+
+/* attribute value for VAConfigAttribEncSliceStructure */
+#define VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS          0x00000000
+#define VA_ENC_SLICE_STRUCTURE_POWER_OF_TWO_ROWS       0x00000001
+#define VA_ENC_SLICE_STRUCTURE_ARBITRARY_MACROBLOCKS   0x00000002
 
 /*
  * if an attribute is not applicable for a given
@@ -528,22 +563,40 @@ typedef enum
     VAEncSliceParameterBufferExtType    = 30,
     VAEncDecRefPicMarkingBufferH264Type     = 31,
 
-    /* New buffer types:
+    /* New packed header buffer types:
      *   Buffers contain NAL units packed by application
      *   Driver only needs to put them to bitstream buffer "as is"
      *   Header packing on host simplifies driver development and allows 
      *   to implement new features and fix/work-around wide range of issues without changing driver
      */
-    VAEncPackedSequenceParameterBufferType  = 32, /* byte-buffer with SPS(+VUI) header */
-    VAEncPackedPictureParameterBufferType   = 33, /* byte-buffer with PPS header */
-    VAEncPackedSliceParameterBufferType	    = 34, /* VAEncPackedSliceHeaderBufferH264 */
+    VAEncPackedHeaderParameterBufferType    = 32,
+    VAEncPackedHeaderDataBufferType         = 33,
+
+    /* Following are video processing buffer types */
     VAProcPipelineParameterBufferType   = 60,
     VAProcInputParameterBufferType      = 61,
     VAProcFilterBaseParameterBufferType     = 62, /* general video processing filter */
     VAProcFilterDeinterlacingParameterBufferType = 63,
     VAProcFilterProcAmpParameterBufferType = 64,
-    VABufferTypeMax                         = 0xff
+    VABufferTypeMax                         = VA_ENUM_MAX
 } VABufferType;
+
+typedef enum
+{
+    VAEncPackedHeaderSPS     = 1,
+    VAEncPackedHeaderPPS     = 2,
+    VAEncPackedHeaderSlice   = 3
+} VAEncPackedHeaderType;
+
+typedef struct _VAEncPackedHeaderParameterBuffer
+{
+    VAEncPackedHeaderType type;
+    unsigned int insert_emulation_bytes;       /* set to 1 to insert startcode emulataion prevention bytes */
+    unsigned int skip_emulation_check_count;
+    unsigned int num_headers; /* number of headers in the buffer, must be 1 for SPS or PPS */
+    unsigned int *length_in_bits; /* array allocated by client to indicate length for each header, with num_header entries */
+    unsigned int *offset_in_bytes; /* array allocated by client to indicate offset from the beginning of the buffer for each header, with num_header entries */
+} VAEncPackedHeaderParameterBuffer;
 
 typedef enum
 {
@@ -585,7 +638,16 @@ typedef struct _VAEncMiscParameterRateControl
     unsigned int window_size; /* windows size in milliseconds. For example if this is set to 500, then the rate control will guarantee the */
                               /* target bit-rate over a 500 ms window */
     unsigned int initial_qp;  /* initial QP at I frames */
-    unsigned int min_qp;     
+    unsigned int min_qp;
+    union
+    {
+        struct
+        {
+            unsigned int reset : 1;
+            unsigned int       : 31;
+        } bits;
+        unsigned int value;
+    } rc_flags;
 } VAEncMiscParameterRateControl;
 
 typedef struct _VAEncMiscParameterFrameRate
@@ -602,6 +664,16 @@ typedef struct _VAEncMiscParameterMaxSliceSize
 {
     unsigned int max_slice_size;
 } VAEncMiscParameterMaxSliceSize;
+
+/*
+ * Allow a maximum frame size to be specified (in bits).
+ * The encoder will attempt to make sure that individual frames do not exceed this size
+ * Or to signal applicate if the frame size exceed this size, see "status" of VACodedBufferSegment
+ */
+typedef struct _VAEncMiscParameterMaxFrameSize
+{
+    unsigned int max_frame_size;
+} VAEncMiscParameterMaxFrameSize;
 
 typedef struct _VAEncMiscParameterAIR
 {
@@ -1206,8 +1278,8 @@ typedef struct _VAEncSliceParameterBuffer
 
 typedef struct _VAEncSliceParameterBufferH264Ext
 {
-    unsigned int   start_row_number;	            /* starting MB row number for this slice */
-    unsigned int   slice_height;	                /* slice height measured in MB */
+    unsigned int   starting_macroblock_address;     /* starting MB address for this slice */
+    unsigned int   number_of_mbs;                   /* number of MBs in this slice */
     unsigned char  pic_parameter_set_id;            /* (0..255) */
     unsigned char  slice_type;                      /* (0..2, 5..7) */
     unsigned char  direct_spatial_mv_pred_flag;
@@ -1219,6 +1291,10 @@ typedef struct _VAEncSliceParameterBufferH264Ext
     signed char    slice_alpha_c0_offset_div2;
     signed char    slice_beta_offset_div2;
     unsigned short idr_pic_id;                      /* (0..65535) */
+    unsigned short pic_order_cnt_lsb;
+    int            delta_pic_order_cnt_bottom;
+    int            delta_pic_order_cnt[2];
+    unsigned char  num_ref_idx_active_override_flag;
 
     VAPictureH264  RefPicList0[32];
     VAPictureH264  RefPicList1[32];
@@ -1308,6 +1384,22 @@ typedef struct _VAEncSequenceParameterBufferH264Ext
 
     unsigned char vui_flag;
 
+    /* fields required by header packing */
+    union {
+        struct {
+            unsigned int chroma_format_idc                 : 2; 
+            unsigned int seq_scaling_matrix_present_flag   : 1;
+            unsigned int seq_scaling_list_present_flag     : 1;
+            unsigned int delta_pic_order_always_zero_flag  : 1;
+        } bits;
+        unsigned int value;
+    } seq_fields;
+    unsigned char   bit_depth_luma_minus8;                      
+    unsigned char   bit_depth_chroma_minus8;                    
+    unsigned char   num_ref_frames_in_pic_order_cnt_cycle;      
+    int             offset_for_non_ref_pic;                     
+    int             offset_for_top_to_bottom_field;             
+    int             offset_for_ref_frame[256];                  
 } VAEncSequenceParameterBufferH264Ext;
 
 /* 
@@ -1332,38 +1424,37 @@ typedef struct _VAEncH264VUIBufferH264
     unsigned int   pic_struct_present_flag                 : 1;
     unsigned int   bitstream_restriction_flag              : 1;
     unsigned int   motion_vectors_over_pic_boundaries_flag : 1;
-    unsigned int   				     	                   : 17;
+    unsigned int   				     	   : 17;
 
     unsigned short sar_width;
-	unsigned short sar_height;
-	unsigned char  aspect_ratio_idc;
-	unsigned char  video_format;
-	unsigned char  colour_primaries;
-	unsigned char  transfer_characteristics;
-	unsigned char  matrix_coefficients;
-	unsigned char  chroma_sample_loc_type_top_field;
-	unsigned char  chroma_sample_loc_type_bottom_field;
-	unsigned char  max_bytes_per_pic_denom;
-	unsigned char  max_bits_per_mb_denom;
-	unsigned char  log2_max_mv_length_horizontal;
-	unsigned char  log2_max_mv_length_vertical;
-	unsigned char  num_reorder_frames;
-	unsigned int   num_units_in_tick;
-	unsigned int   time_scale;
-	unsigned char  max_dec_frame_buffering;
+    unsigned short sar_height;
+    unsigned char  aspect_ratio_idc;
+    unsigned char  video_format;
+    unsigned char  colour_primaries;
+    unsigned char  transfer_characteristics;
+    unsigned char  matrix_coefficients;
+    unsigned char  chroma_sample_loc_type_top_field;
+    unsigned char  chroma_sample_loc_type_bottom_field;
+    unsigned char  max_bytes_per_pic_denom;
+    unsigned char  max_bits_per_mb_denom;
+    unsigned char  log2_max_mv_length_horizontal;
+    unsigned char  log2_max_mv_length_vertical;
+    unsigned char  num_reorder_frames;
+    unsigned int   num_units_in_tick;
+    unsigned int   time_scale;
+    unsigned char  max_dec_frame_buffering;
 
-	// HRD parameters
-	unsigned char  cpb_cnt_minus1;
-	unsigned char  bit_rate_scale;
-	unsigned char  cpb_size_scale;
-	unsigned int   bit_rate_value_minus1[32];
-	unsigned int   cpb_size_value_minus1[32];
-	unsigned int   cbr_flag; // bit 0 represent SchedSelIdx 0 and so on
-	unsigned char  initial_cpb_removal_delay_length_minus1;
-	unsigned char  cpb_removal_delay_length_minus1;
-	unsigned char  dpb_output_delay_length_minus1;
-	unsigned char  time_offset_length;
-
+    // HRD parameters
+    unsigned char  cpb_cnt_minus1;
+    unsigned char  bit_rate_scale;
+    unsigned char  cpb_size_scale;
+    unsigned int   bit_rate_value_minus1[32];
+    unsigned int   cpb_size_value_minus1[32];
+    unsigned int   cbr_flag; // bit 0 represent SchedSelIdx 0 and so on
+    unsigned char  initial_cpb_removal_delay_length_minus1;
+    unsigned char  cpb_removal_delay_length_minus1;
+    unsigned char  dpb_output_delay_length_minus1;
+    unsigned char  time_offset_length;
 } VAEncH264VUIBufferH264;
 
 #define H264_LAST_PICTURE_EOSEQ     0x01 /* the last picture in the sequence */
@@ -1395,6 +1486,8 @@ typedef struct _VAEncPictureParameterBufferH264Ext
     unsigned char  pic_init_qp;                     /* (0..51) for const qp */
     unsigned char  num_ref_idx_l0_active_minus1;    /* (0..31) */
     unsigned char  num_ref_idx_l1_active_minus1;    /* (0..31) */
+    signed char chroma_qp_index_offset;             /* (-12..12) */
+    signed char second_chroma_qp_index_offset;      /* (-12..12) */
 
     union
     {
@@ -1405,8 +1498,12 @@ typedef struct _VAEncPictureParameterBufferH264Ext
             unsigned int entropy_coding_mode_flag : 1;  /* CAVLC/CABAC */
             unsigned int weighted_pred_flag       : 1; 
             unsigned int weighted_bipred_idc      : 2;  /* (0..2) */
+            unsigned int constrained_intra_pred_flag : 1;
             unsigned int transform_8x8_mode_flag  : 1;
             unsigned int deblocking_filter_control_present_flag : 1;
+            unsigned int pic_order_present_flag   : 1;
+            unsigned int pic_scaling_matrix_present_flag : 1;
+            unsigned int pic_scaling_list_present_flag : 1;
         } bits;
 
         unsigned int value;
@@ -1422,17 +1519,6 @@ typedef struct _VAEncH264DecRefPicMarkingBuffer
     unsigned char  memory_management_control_operation[32];
     unsigned int   value[32][2];
 } VAEncH264DecRefPicMarkingBuffer;
-
-/*
- * Represent packed-buffer of type VAEncSliceParameterBufferTypePacked
- * length in bits is needed since slice header can be not byte-aligned
- */
-typedef struct _VAEncPackedSliceHeaderBufferH264
-{
-    unsigned int  length_in_bits;
-    unsigned char has_0x03_bytes;       /* startcode emulataion prevention bytes */
-    unsigned char reserved[3];
-} VAEncPackedSliceHeaderBufferH264;
 
 /****************************
  * H.263 specific encode data structures
@@ -2214,6 +2300,10 @@ VAStatus vaSetDisplayAttributes (
     int num_attributes
 );
 
+/* 
+ * Video Processing structures
+ */
+
 #define VA_PROC_PIPELINE_MAX_NUM_FILTERS    32
 
 typedef enum
@@ -2266,6 +2356,10 @@ typedef struct _VAProcInputParameterBuffer
     VARectangle region;  /* region within the surface to be processed */    
     VAProcColorPrimaries color_primaries;
     VAProcStreamType stream_type;
+    unsigned int num_forward_reference;
+    unsigned int num_backward_reference;
+    VASurfaceID *forward_referrence; /* array of forward reference frames */
+    VASurfaceID *backward_reference; /* array of backward reference frames */
 } VAProcInputParameterBuffer;
 
 typedef struct _VAProcFilterBaseParameterBuffer
@@ -2293,8 +2387,6 @@ typedef enum
 typedef struct _VAProcFilterDeinterlacingParameterBuffer
 {
     VAProcDeinterlacingMode mode;
-    VASurfaceID forward_reference;
-    VASurfaceID backward_reference;
 } VAProcFilterDeinterlacingParameterBuffer;
 
 typedef struct _VAProcPipelineCap
@@ -2345,6 +2437,17 @@ VAStatus vaQueryVideoProcFilterCap (
     VAProcFilterType filter,
     void *cap   /* out */
 );
+
+/*
+ * Query reference frame required by the pipeline 
+ */
+VAStatus vaQueryVideoProcReferenceFramesCap (
+    VADisplay dpy,
+    VAContextID context,
+    unsigned int *num_forward_reference, /* out */
+    unsigned int *num_backward_reference /* out */
+);
+
 #ifdef __cplusplus
 }
 #endif
