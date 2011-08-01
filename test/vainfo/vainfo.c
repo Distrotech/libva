@@ -44,6 +44,7 @@ if (va_status != VA_STATUS_SUCCESS) {                                   \
 static char * profile_string(VAProfile profile)
 {
     switch (profile) {
+            case VAProfileNone: return "VAProfileNone";
             case VAProfileMPEG2Simple: return "VAProfileMPEG2Simple";
             case VAProfileMPEG2Main: return "VAProfileMPEG2Main";
             case VAProfileMPEG4Simple: return "VAProfileMPEG4Simple";
@@ -56,8 +57,10 @@ static char * profile_string(VAProfile profile)
             case VAProfileVC1Main: return "VAProfileVC1Main";
             case VAProfileVC1Advanced: return "VAProfileVC1Advanced";
             case VAProfileH263Baseline: return "VAProfileH263Baseline";
+            case VAProfileJPEGBaseline: return "VAProfileJPEGBaseline";
             case VAProfileH264ConstrainedBaseline: return "VAProfileH264ConstrainedBaseline";
-            case VAProfileNone: return "VAProfileNone";
+            default:
+                break;
     }
     return "<unknown profile>";
 }
@@ -72,7 +75,10 @@ static char * entrypoint_string(VAEntrypoint entrypoint)
             case VAEntrypointMoComp:return "VAEntrypointMoComp";
             case VAEntrypointDeblocking:return "VAEntrypointDeblocking";
             case VAEntrypointEncSlice:return "VAEntrypointEncSlice";
+            case VAEntrypointEncPicture:return "VAEntrypointEncPicture";
             case VAEntrypointVideoProc:return "VAEntrypointVideoProc";
+            default:
+                break;
     }
     return "<unknown entrypoint>";
 }
