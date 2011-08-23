@@ -2350,6 +2350,13 @@ typedef struct _VAProcPipelineParameterBuffer
     unsigned int output_background_color;
 } VAProcPipelineParameterBuffer;
 
+/*
+ * flags for VAProcInputParameterBuffer
+ */
+#define VA_PROC_INPUT_PARAMETER_FRAME_PICTURE          0x00000000      /* surface holds a progressive frame */
+#define VA_PROC_INPUT_PARAMETER_TOP_FIELD_FIRST        0x00000001      /* surface holds two fields with top field first */
+#define VA_PROC_INPUT_PARAMETER_BOTTOM_FIELD_FIRST     0x00000002      /* surface holds two fields with bottom field first */
+
 typedef struct _VAProcInputParameterBuffer
 {
     VASurfaceID surface;
@@ -2360,6 +2367,7 @@ typedef struct _VAProcInputParameterBuffer
     unsigned int num_backward_reference;
     VASurfaceID *forward_referrence; /* array of forward reference frames */
     VASurfaceID *backward_reference; /* array of backward reference frames */
+    unsigned int flags;
 } VAProcInputParameterBuffer;
 
 typedef struct _VAProcFilterBaseParameterBuffer
