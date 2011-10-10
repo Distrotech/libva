@@ -1126,10 +1126,10 @@ static void va_TraceVAEncSequenceParameterBufferH264(
     unsigned int num_elements,
     void *data)
 {
-    VAEncSequenceParameterBufferH264 *p = (VAEncSequenceParameterBufferH264 *)data;
+    VAEncSequenceParameterBufferH264Baseline *p = (VAEncSequenceParameterBufferH264Baseline *)data;
     DPY2INDEX(dpy);
     
-    va_TraceMsg(idx, "VAEncSequenceParameterBufferH264\n");
+    va_TraceMsg(idx, "VAEncSequenceParameterBufferH264Baseline\n");
     
     va_TraceMsg(idx, "\tseq_parameter_set_id = %d\n", p->seq_parameter_set_id);
     va_TraceMsg(idx, "\tlevel_idc = %d\n", p->level_idc);
@@ -1161,7 +1161,7 @@ static void va_TraceVAEncPictureParameterBufferH264(
     unsigned int num_elements,
     void *data)
 {
-    VAEncPictureParameterBufferH264 *p = (VAEncPictureParameterBufferH264 *)data;
+    VAEncPictureParameterBufferH264Baseline *p = (VAEncPictureParameterBufferH264Baseline *)data;
     DPY2INDEX(dpy);
     
     va_TraceMsg(idx, "VAEncPictureParameterBufferH264\n");
