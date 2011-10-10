@@ -24,7 +24,7 @@
 /*
  * Video Acceleration (VA) API Specification
  *
- * Rev. 0.32.2
+ * Rev. 0.32.3
  * <jonathan.bian@intel.com>
  *
  * Revision History:
@@ -65,6 +65,8 @@
  *
  *  
  * rev 0.32.2 (07/05/2011 Jonathan Bian/Andrey Yakovenko) - Video Processing interface
+ *
+ * rev 0.32.3 (09/20/2011)		- General clean-up of new interfaces
  *
  * Acknowledgements:
  *  Some concepts borrowed from XvMC and XvImage.
@@ -227,9 +229,6 @@ VAPrivFunc vaGetLibFunc (
     const char *func
 );
 
-#define VA_ENUM_MAX    16384
-
-
 /* Currently defined profiles */
 typedef enum
 {
@@ -247,8 +246,7 @@ typedef enum
     VAProfileVC1Advanced		= 10,
     VAProfileH263Baseline		= 11,
     VAProfileJPEGBaseline               = 12,
-    VAProfileH264ConstrainedBaseline    = 13,
-    VAProfileMax			= VA_ENUM_MAX
+    VAProfileH264ConstrainedBaseline    = 13
 } VAProfile;
 
 /* 
@@ -262,8 +260,7 @@ typedef enum
     VAEntrypointDeblocking	= 5,
     VAEntrypointEncSlice	= 6,	/* slice level encode */
     VAEntrypointEncPicture 	= 7,	/* pictuer encode, JPEG, etc */
-    VAEntrypointVideoProc	= 8,	/* video pre/post processing */
-    VAEntrypointMax		= VA_ENUM_MAX
+    VAEntrypointVideoProc	= 8	/* video pre/post processing */
 } VAEntrypoint;
 
 /* Currently defined configuration attribute types */
@@ -278,8 +275,7 @@ typedef enum
     VAConfigAttribRateControl           = 30, /*encode related attributes starting here */
     VAConfigAttribEncHeaderPacking      = 31,
     VAConfigAttribEncInterlaced         = 32,
-    VAConifgAttribEncSliceStructure     = 33,
-    VAConfigAttribTypeMax		= VA_ENUM_MAX
+    VAConifgAttribEncSliceStructure     = 33
 } VAConfigAttribType;
 
 /*
@@ -321,7 +317,7 @@ typedef struct _VAConfigAttrib {
 #define VA_ENC_INTERLACED_FRAME         0x00000001 /* interlace frame coding */
 #define VA_ENC_INTERLACED_FIELD         0x00000002 /* interlace field coding */
 #define VA_ENC_INTERLACED_MBAFF         0x00000004 /* Macroblock Adaptive Frame Field */
-#define VA_ENC_INTERLACED_PIC_AFF       0x00000008 /* Picture Adaptive Frame Field */
+#define VA_ENC_INTERLACED_PAFF          0x00000008 /* Picture Adaptive Frame Field */
 
 /* attribute value for VAConfigAttribEncSliceStructure */
 #define VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS          0x00000000
@@ -559,11 +555,7 @@ typedef enum
     VAEncH264VUIBufferType		= 25,
     VAEncH264SEIBufferType		= 26,
     VAEncMiscParameterBufferType	= 27,
-
-    VAEncSequenceParameterBufferExtType = 28,
-    VAEncPictureParameterBufferExtType  = 29,
-    VAEncSliceParameterBufferExtType    = 30,
-    VAEncDecRefPicMarkingBufferH264Type     = 31,
+    VAEncDecRefPicMarkingBufferH264Type     = 28,
 
     /* New packed header buffer types:
      *   Buffers contain NAL units packed by application
@@ -580,7 +572,7 @@ typedef enum
     VAProcFilterBaseParameterBufferType     = 62, /* general video processing filter */
     VAProcFilterDeinterlacingParameterBufferType = 63,
     VAProcFilterProcAmpParameterBufferType = 64,
-    VABufferTypeMax                         = VA_ENUM_MAX
+    VABufferTypeMax = 0xff
 } VABufferType;
 
 typedef enum
@@ -1372,7 +1364,11 @@ typedef enum
     VAEncPictureTypeBidirectional	= 2,
 } VAEncPictureType;
 
-/* Encode Slice Parameter Buffer */
+/*
+ * Encode Slice Parameter Buffer 
+ * This is the common/base version that can be used for H.264 BP, MPEG-4 SP etc.
+ */
+
 typedef struct _VAEncSliceParameterBuffer
 {
     unsigned int start_row_number;	/* starting MB row number for this slice */
@@ -1388,7 +1384,14 @@ typedef struct _VAEncSliceParameterBuffer
     } slice_flags;
 } VAEncSliceParameterBuffer;
 
-typedef struct _VAEncSliceParameterBufferH264Ext
+/****************************
+ * H.264 specific encode data structures
+ ****************************/
+
+/*
+ * H.264 slice parameter structure for Main/High profiles
+ */
+typedef struct _VAEncSliceParameterBufferH264
 {
     unsigned int   starting_macroblock_address;     /* starting MB address for this slice */
     unsigned int   number_of_mbs;                   /* number of MBs in this slice */
@@ -1435,13 +1438,12 @@ typedef struct _VAEncSliceParameterBufferH264Ext
     signed short   chroma_weight_l1[32][2];
     signed short   chroma_offset_l1[32][2];
 
-} VAEncSliceParameterBufferH264Ext;
+} VAEncSliceParameterBufferH264;
 
-/****************************
- * H.264 specific encode data structures
- ****************************/
-
-typedef struct _VAEncSequenceParameterBufferH264
+/*
+ * H.264 sequence parameter structure for Baseline profile
+ */
+typedef struct _VAEncSequenceParameterBufferH264Baseline
 {
     unsigned char seq_parameter_set_id;
     unsigned char level_idc;
@@ -1456,9 +1458,12 @@ typedef struct _VAEncSequenceParameterBufferH264
     unsigned int min_qp;
     unsigned int basic_unit_size;
     unsigned char vui_flag;
-} VAEncSequenceParameterBufferH264;
+} VAEncSequenceParameterBufferH264Baseline;
 
-typedef struct _VAEncSequenceParameterBufferH264Ext
+/*
+ * H.264 sequence parameter structure for Main/High profiles
+ */
+typedef struct _VAEncSequenceParameterBufferH264
 {
     unsigned char seq_parameter_set_id;
     unsigned char profile_idc;
@@ -1512,66 +1517,15 @@ typedef struct _VAEncSequenceParameterBufferH264Ext
     int             offset_for_non_ref_pic;                     
     int             offset_for_top_to_bottom_field;             
     int             offset_for_ref_frame[256];                  
-} VAEncSequenceParameterBufferH264Ext;
-
-/* 
- * if packed-buffers are adopted
- * vui_paramters() will be generated by host application as a part of sps header
- * then entire vui structure can be removed from interface
- */
-typedef struct _VAEncH264VUIBufferH264
-{
-    unsigned int   aspect_ratio_info_present_flag          : 1;
-    unsigned int   overscan_info_present_flag              : 1;
-    unsigned int   overscan_appropriate_flag               : 1;
-    unsigned int   video_signal_type_present_flag          : 1;
-    unsigned int   video_full_range_flag                   : 1;
-    unsigned int   colour_description_present_flag         : 1;
-    unsigned int   chroma_loc_info_present_flag            : 1;
-    unsigned int   timing_info_present_flag                : 1;
-    unsigned int   fixed_frame_rate_flag                   : 1;
-    unsigned int   nal_hrd_parameters_present_flag         : 1;
-    unsigned int   vcl_hrd_parameters_present_flag         : 1;
-    unsigned int   low_delay_hrd_flag                      : 1;
-    unsigned int   pic_struct_present_flag                 : 1;
-    unsigned int   bitstream_restriction_flag              : 1;
-    unsigned int   motion_vectors_over_pic_boundaries_flag : 1;
-    unsigned int   				     	   : 17;
-
-    unsigned short sar_width;
-    unsigned short sar_height;
-    unsigned char  aspect_ratio_idc;
-    unsigned char  video_format;
-    unsigned char  colour_primaries;
-    unsigned char  transfer_characteristics;
-    unsigned char  matrix_coefficients;
-    unsigned char  chroma_sample_loc_type_top_field;
-    unsigned char  chroma_sample_loc_type_bottom_field;
-    unsigned char  max_bytes_per_pic_denom;
-    unsigned char  max_bits_per_mb_denom;
-    unsigned char  log2_max_mv_length_horizontal;
-    unsigned char  log2_max_mv_length_vertical;
-    unsigned char  num_reorder_frames;
-    unsigned int   num_units_in_tick;
-    unsigned int   time_scale;
-    unsigned char  max_dec_frame_buffering;
-
-    // HRD parameters
-    unsigned char  cpb_cnt_minus1;
-    unsigned char  bit_rate_scale;
-    unsigned char  cpb_size_scale;
-    unsigned int   bit_rate_value_minus1[32];
-    unsigned int   cpb_size_value_minus1[32];
-    unsigned int   cbr_flag; // bit 0 represent SchedSelIdx 0 and so on
-    unsigned char  initial_cpb_removal_delay_length_minus1;
-    unsigned char  cpb_removal_delay_length_minus1;
-    unsigned char  dpb_output_delay_length_minus1;
-    unsigned char  time_offset_length;
-} VAEncH264VUIBufferH264;
+} VAEncSequenceParameterBufferH264;
 
 #define H264_LAST_PICTURE_EOSEQ     0x01 /* the last picture in the sequence */
 #define H264_LAST_PICTURE_EOSTREAM  0x02 /* the last picture in the stream */
-typedef struct _VAEncPictureParameterBufferH264
+
+/*
+ * H.264 picture parameter structure for Baseline profile
+ */
+typedef struct _VAEncPictureParameterBufferH264Baseline
 {
     VASurfaceID reference_picture;
     VASurfaceID reconstructed_picture;
@@ -1579,9 +1533,12 @@ typedef struct _VAEncPictureParameterBufferH264
     unsigned short picture_width;
     unsigned short picture_height;
     unsigned char last_picture;
-} VAEncPictureParameterBufferH264;
+} VAEncPictureParameterBufferH264Baseline;
 
-typedef struct _VAEncPictureParameterBufferH264Ext
+/*
+ * H.264 picture parameter structure for Main/High profiles
+ */
+typedef struct _VAEncPictureParameterBufferH264
 {
     VAPictureH264  CurrPic;
     VAPictureH264  ReferenceFrames[16];             /* DPB */
@@ -1621,7 +1578,7 @@ typedef struct _VAEncPictureParameterBufferH264Ext
         unsigned int value;
     } pic_fields;
 
-} VAEncPictureParameterBufferH264Ext;
+} VAEncPictureParameterBufferH264;
 
 typedef struct _VAEncH264DecRefPicMarkingBuffer
 {
