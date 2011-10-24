@@ -20,21 +20,62 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+# VA-API version
+# - increment major for any ABI change (which shall not occur!)
+# - increment minor for any interface change (e.g. new/modified function)
+# - increment micro for any other change (new flag, new codec definition, etc.)
+# - reset micro version to zero when minor version is incremented
+# - reset minor version to zero when major version is incremented
+m4_define([va_api_major_version], [0])
+m4_define([va_api_minor_version], [32])
+m4_define([va_api_micro_version], [0])
+
+m4_define([va_api_version],
+          [va_api_major_version.va_api_minor_version.va_api_micro_version])
+
 # libva package version number, (as distinct from shared library version)
-m4_define([libva_major_version], [0])
-m4_define([libva_minor_version], [32])
-m4_define([libva_micro_version], [0])
+# XXX: we want the package version to remain at 1.0.x for VA-API 0.32.y
+#
+# - major version is automatically generated from VA-API major version
+# - minor version is automatically generated from VA-API minor version
+# - increment micro for any library release
+# - reset micro version to zero when VA-API major or minor version is changed
+m4_define([libva_major_version], [m4_eval(va_api_major_version + 1)])
+m4_define([libva_minor_version], [m4_eval(va_api_minor_version - 32)])
+m4_define([libva_micro_version], [15])
+m4_define([libva_pre_version],   [1])
 
 m4_define([libva_version],
           [libva_major_version.libva_minor_version.libva_micro_version])
+m4_if(libva_pre_version, [0], [], [
+m4_append([libva_version], libva_pre_version, [.pre])
+])
 
-# if the library source code has changed, increment revision
-m4_define([libva_lt_revision], [14])
-# if any interface was added/removed/changed, then inc current, reset revision
-m4_define([libva_lt_current], [1])
-# if any interface was added since last public release, then increment age
-# if any interface was removed since last public release, then set age to 0
-m4_define([libva_lt_age], [0])
+# libva library version number (generated, do not change)
+# XXX: we want the SONAME to remain at libva.so.1 for VA-API major == 0
+#
+# The library name is generated libva.<x>.<y>.0 where
+# <x> = VA-API major version + 1
+# <y> = 100 * VA-API minor version + VA-API micro version
+#
+# For example:
+# VA-API 0.32.0 generates libva.so.1.3200.0
+# VA-API 0.34.1 generates libva.so.1.3401.0
+# VA-API 1.2.13 generates libva.so.2.213.0
+m4_define([libva_interface_bias], [m4_eval(va_api_major_version + 1)])
+m4_define([libva_interface_age],  [0])
+m4_define([libva_binary_age],
+          [m4_eval(100 * va_api_minor_version + va_api_micro_version - libva_interface_age)])
+
+m4_define([libva_lt_current],
+          [m4_eval(100 * va_api_minor_version + va_api_micro_version + libva_interface_bias)])
+m4_define([libva_lt_revision],
+          [m4_eval(libva_interface_age)])
+m4_define([libva_lt_age],
+          [m4_eval(libva_binary_age - libva_interface_age)])
+
+# libdrm minimun version requirement
+m4_define([libdrm_version], [2.4])
 
 AC_PREREQ(2.57)
 AC_INIT([libva], [libva_version], [waldo.bastian@intel.com], libva)
@@ -43,6 +84,15 @@ AM_INIT_AUTOMAKE([dist-bzip2])
 
 AM_CONFIG_HEADER([config.h])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+VA_API_MAJOR_VERSION=va_api_major_version
+VA_API_MINOR_VERSION=va_api_minor_version
+VA_API_MICRO_VERSION=va_api_micro_version
+VA_API_VERSION=va_api_version
+AC_SUBST(VA_API_MAJOR_VERSION)
+AC_SUBST(VA_API_MINOR_VERSION)
+AC_SUBST(VA_API_MICRO_VERSION)
+AC_SUBST(VA_API_VERSION)
 
 LIBVA_MAJOR_VERSION=libva_major_version
 LIBVA_MINOR_VERSION=libva_minor_version
@@ -95,10 +145,11 @@ AC_SYS_LARGEFILE
 PKG_CHECK_MODULES([X11], [x11])
 PKG_CHECK_MODULES([XEXT],[xext])
 PKG_CHECK_MODULES([XFIXES], [xfixes])
-PKG_CHECK_MODULES([DRM], [libdrm])
 
-PKG_CHECK_MODULES(GEN4ASM, [intel-gen4asm >= 1.2], [gen4asm=yes], [gen4asm=no])
-AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
+# Check for recent enough DRM
+LIBDRM_VERSION=libdrm_version
+PKG_CHECK_MODULES([DRM], [libdrm >= $LIBDRM_VERSION])
+AC_SUBST(LIBDRM_VERSION)
 
 if test x$enable_dummy_backend = xyes; then
     PKG_CHECK_MODULES([UDEV], [libudev], [libudev=yes], [libudev=no])
@@ -128,14 +179,6 @@ AM_CONDITIONAL(USE_GLX, test "$USE_GLX" = "yes")
 USE_EGL="yes"
 AM_CONDITIONAL(USE_EGL, test "$USE_EGL" = "yes")
 
-
-# Make sure drivers use the correctly versioned __vaDriverInit*() function name
-VA_DRIVER_INIT_FUNC="__vaDriverInit_${LIBVA_MAJOR_VERSION}_${LIBVA_MINOR_VERSION}"
-AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC], [$VA_DRIVER_INIT_FUNC],
-    [Defined to the versioned __vaDriverInit function name])
-AC_DEFINE_UNQUOTED([VA_DRIVER_INIT_FUNC_S], ["$VA_DRIVER_INIT_FUNC"],
-    [Defined to the versioned __vaDriverInit function name (in string form)])
-
 # We only need the headers, we don't link against the DRM libraries
 LIBVA_CFLAGS="$DRM_CFLAGS"
 AC_SUBST(LIBVA_CFLAGS)
@@ -152,6 +195,7 @@ AC_SUBST([libvabackendlib])
 
 AC_OUTPUT([
 	Makefile
+	debian.upstream/Makefile
 	va/Makefile
 	va/va_version.h
 	va/x11/Makefile
@@ -166,17 +210,18 @@ AC_OUTPUT([
 	test/encode/Makefile
 	test/vainfo/Makefile
 	test/transcode/Makefile
-	libva.pc
-	libva-x11.pc
-	libva-glx.pc
-	libva-egl.pc
-	libva-tpi.pc
+	pkgconfig/libva-egl.pc
+	pkgconfig/libva-glx.pc
+	pkgconfig/libva-tpi.pc
+	pkgconfig/libva-x11.pc
+	pkgconfig/libva.pc
+        pkgconfig/Makefile
 ])
 
 # Print a small summary
 
 echo ""
-echo "libva - ${LIBVA_VERSION}"
+echo "libva - ${LIBVA_VERSION} (VA-API ${VA_API_VERSION})"
 echo ""
 
 echo " • Global :"

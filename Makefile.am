@@ -22,24 +22,24 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = va test
-if BUILD_DUMMY_DRIVER
-SUBDIRS += dummy_drv_video
-endif
+SUBDIRS = va dummy_drv_video pkgconfig test debian.upstream
 
-pcfiles = libva.pc libva-tpi.pc
-pcfiles += libva-x11.pc
-if USE_GLX
-pcfiles += libva-glx.pc
-endif
+# Extra clean files so that maintainer-clean removes *everything*
+MAINTAINERCLEANFILES = \
+	aclocal.m4 compile config.guess config.sub \
+	configure depcomp install-sh ltmain.sh     \
+	Makefile.in missing
 
-if USE_EGL
-pcfiles += libva-egl.pc
-endif
+DEB_BUILDDIR = debian.build
 
-pkgconfigdir = @pkgconfigdir@
-pkgconfig_DATA = $(pcfiles)
+deb:
+	@[ -d debian ] || ln -s debian.upstream debian
+	dpkg-buildpackage -rfakeroot -uc -us
 
-EXTRA_DIST = libva.pc.in libva-tpi.pc.in libva-x11.pc.in libva-glx.pc.in libva-egl.pc.in
-
-CLEANFILES = $(pcfiles)
+deb.upstream: dist
+	-mkdir -p $(DEB_BUILDDIR)
+	cd $(DEB_BUILDDIR)				&& \
+	rm -rf $(PACKAGE)-$(VERSION)			&& \
+	tar zxvf ../$(PACKAGE)-$(VERSION).tar.gz	&& \
+	cd $(PACKAGE)-$(VERSION)			&& \
+	$(MAKE) deb -f Makefile.am

@@ -20,18 +20,28 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+pcfiles		 = libva.pc
+pcfiles		+= libva-tpi.pc
+pcfiles		+= libva-x11.pc
+if USE_GLX
+pcfiles		+= libva-glx.pc
+endif
+if USE_EGL
+pcfiles		+= libva-egl.pc
+endif
 
-bin_PROGRAMS = vainfo
+all_pcfiles_in	 = libva.pc.in
+all_pcfiles_in	+= libva-tpi.pc.in
+all_pcfiles_in	+= libva-x11.pc.in
+all_pcfiles_in	+= libva-glx.pc.in
+all_pcfiles_in	+= libva-egl.pc.in
 
-INCLUDES = \
-	-I$(top_srcdir)					\
-	-I$(top_srcdir)/test/basic			\
-	-DLIBVA_VERSION_S="\"${LIBVA_VERSION}\""	\
-	$(NULL)
+pkgconfigdir = @pkgconfigdir@
+pkgconfig_DATA = $(pcfiles)
 
-vainfo_LDADD = $(top_builddir)/va/$(libvacorelib) $(top_builddir)/va/$(libvabackendlib) -lX11
+EXTRA_DIST = $(all_pcfiles_in)
 
-vainfo_DEPENDENCIES =  $(top_builddir)/va/$(libvacorelib) $(top_builddir)/va/$(libvabackendlib)
+DISTCLEANFILES = $(pcfiles)
 
-valgrind:	vainfo
-	valgrind --leak-check=full --show-reachable=yes .libs/vainfo; 
+# Extra clean files so that maintainer-clean removes *everything*
+MAINTAINERCLEANFILES = Makefile.in

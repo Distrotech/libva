@@ -59,6 +59,7 @@ static char * profile_string(VAProfile profile)
             case VAProfileH263Baseline: return "VAProfileH263Baseline";
             case VAProfileJPEGBaseline: return "VAProfileJPEGBaseline";
             case VAProfileH264ConstrainedBaseline: return "VAProfileH264ConstrainedBaseline";
+
             default:
                 break;
     }
@@ -77,6 +78,7 @@ static char * entrypoint_string(VAEntrypoint entrypoint)
             case VAEntrypointEncSlice:return "VAEntrypointEncSlice";
             case VAEntrypointEncPicture:return "VAEntrypointEncPicture";
             case VAEntrypointVideoProc:return "VAEntrypointVideoProc";
+
             default:
                 break;
     }
@@ -102,7 +104,7 @@ int main(int argc, const char* argv[])
       name = argv[0];
 
 #ifndef ANDROID
-  dpy = XOpenDisplay(":0.0");
+  dpy = XOpenDisplay(NULL);
 #else
   dpy = (Display*)malloc(sizeof(Display));
 #endif
@@ -122,7 +124,8 @@ int main(int argc, const char* argv[])
   va_status = vaInitialize(va_dpy, &major_version, &minor_version);
   CHECK_VASTATUS(va_status, "vaInitialize", 3);
   
-  printf("%s: VA API version: %d.%d\n", name, major_version, minor_version);
+  printf("%s: VA-API version: %d.%d (libva %s)\n",
+         name, major_version, minor_version, LIBVA_VERSION_S);
 
   driver = vaQueryVendorString(va_dpy);
   printf("%s: Driver version: %s\n", name, driver ? driver : "<unknown>");
