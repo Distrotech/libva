@@ -2412,6 +2412,11 @@ typedef struct _VAProcPipelineParameterBuffer
      */
     VARectangle output_region;  
     unsigned int output_background_color;
+    /*
+     * Pipleline flags, currently it is used for scaling,
+     * See Scaling flags for vaPutSurface() 
+     */
+    unsigned int flags;
 } VAProcPipelineParameterBuffer;
 
 /*
