@@ -43,6 +43,7 @@ libva_source_h = \
 	va_drmcommon.h		\
 	va_tpi.h		\
 	va_version.h		\
+	va_vpp.h		\
 	$(NULL)
 
 libva_source_h_priv = \
