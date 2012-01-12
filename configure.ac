@@ -42,7 +42,7 @@ m4_define([va_api_version],
 # - reset micro version to zero when VA-API major or minor version is changed
 m4_define([libva_major_version], [m4_eval(va_api_major_version + 1)])
 m4_define([libva_minor_version], [m4_eval(va_api_minor_version - 32)])
-m4_define([libva_micro_version], [15])
+m4_define([libva_micro_version], [16])
 m4_define([libva_pre_version],   [1])
 
 m4_define([libva_version],
@@ -111,25 +111,36 @@ LIBVA_LT_LDFLAGS="-version-info $LIBVA_LT_VERSION"
 AC_SUBST(LIBVA_LT_VERSION)
 AC_SUBST(LIBVA_LT_LDFLAGS)
 
+AC_ARG_ENABLE(docs,
+    [AC_HELP_STRING([--enable-docs],
+                    [build Doxygen documentation @<:@default=no@:>@])],
+    [], [enable_docs="no"])
+
 AC_ARG_ENABLE(glx,
-              [AC_HELP_STRING([--enable-glx],
-                              [build with OpenGL for X11 support])],
-              [], [enable_glx=yes])
+    [AC_HELP_STRING([--enable-glx],
+                    [build with GLX support @<:@default=yes@:>@])],
+    [], [enable_glx="yes"])
+
+AC_ARG_ENABLE(egl,
+    [AC_HELP_STRING([--enable-egl],
+                    [build with EGL support @<:@default=yes@:>@])],
+    [], [enable_egl="yes"])
 
 AC_ARG_ENABLE(dummy-driver,
-              [AC_HELP_STRING([--enable-dummy-driver],
-                              [build dummy video driver])],
-              [], [enable_dummy_driver=yes])
+    [AC_HELP_STRING([--enable-dummy-driver],
+                    [build dummy video driver @<:@default=yes@:>@])],
+    [], [enable_dummy_driver="yes"])
 AM_CONDITIONAL(BUILD_DUMMY_DRIVER, test x$enable_dummy_driver = xyes)
 
 AC_ARG_ENABLE(dummy-backend,
-              [AC_HELP_STRING([--enable-dummy-backend],
-                              [build dummy libva backend])],
-              [], [enable_dummy_backend=no])
+    [AC_HELP_STRING([--enable-dummy-backend],
+                    [build dummy libva backend])],
+    [], [enable_dummy_backend="no"])
 
 AC_ARG_WITH(drivers-path,
-	    [AC_HELP_STRING([--with-drivers-path=[[path]]], [drivers path])],,
-	    [with_drivers_path="$libdir/dri"])
+    [AC_HELP_STRING([--with-drivers-path=[[path]]],
+                    [drivers path])],
+    [], [with_drivers_path="$libdir/dri"])
 
 LIBVA_DRIVERS_PATH="$with_drivers_path"
 AC_SUBST(LIBVA_DRIVERS_PATH)
@@ -146,6 +157,12 @@ PKG_CHECK_MODULES([X11], [x11])
 PKG_CHECK_MODULES([XEXT],[xext])
 PKG_CHECK_MODULES([XFIXES], [xfixes])
 
+# Check for Doxygen
+if test "$enable_docs" = "yes"; then
+    AC_CHECK_TOOL([DOXYGEN], [doxygen], [enable_docs="no"])
+fi
+AM_CONDITIONAL(ENABLE_DOCS, test "$enable_docs" = "yes")
+
 # Check for recent enough DRM
 LIBDRM_VERSION=libdrm_version
 PKG_CHECK_MODULES([DRM], [libdrm >= $LIBDRM_VERSION])
@@ -159,7 +176,7 @@ if test x$libudev = xno; then
 fi
 AM_CONDITIONAL(BUILD_DUMMY_BACKEND, test x$enable_dummy_backend = xyes)
 
-# Check for OpenGL (X11)
+# Check for GLX
 USE_GLX="no"
 GL_DEPS_CFLAGS=""
 GL_DEPS_LIBS=""
@@ -175,9 +192,23 @@ AC_SUBST(GL_DEPS_CFLAGS)
 AC_SUBST(GL_DEPS_LIBS)
 AM_CONDITIONAL(USE_GLX, test "$USE_GLX" = "yes")
 
-# TBD: Check for EGL
-USE_EGL="yes"
+# Check for EGL
+USE_EGL="no"
+EGL_DEPS_CFLAGS=""
+EGL_DEPS_LIBS=""
+if test "$enable_egl" = "yes"; then
+    AC_CHECK_HEADERS([EGL/egl.h])
+    AC_CHECK_LIB(EGL, eglGetDisplay, [
+        USE_EGL="yes"
+        EGL_DEPS_LIBS="-lEGL"
+    ])
+
+    PKG_CHECK_MODULES([GLESv1_CM], [glesv1_cm], [libglesv1_cm=yes], [libglesv1_cm=no])
+fi
+AC_SUBST(EGL_DEPS_CFLAGS)
+AC_SUBST(EGL_DEPS_LIBS)
 AM_CONDITIONAL(USE_EGL, test "$USE_EGL" = "yes")
+AM_CONDITIONAL(BUILD_EGL_TEST, test x$libglesv1_cm = xyes)
 
 # We only need the headers, we don't link against the DRM libraries
 LIBVA_CFLAGS="$DRM_CFLAGS"
@@ -206,6 +237,7 @@ AC_OUTPUT([
 	test/Makefile
 	test/basic/Makefile
 	test/decode/Makefile
+        test/egl/Makefile
 	test/putsurface/Makefile
 	test/encode/Makefile
 	test/vainfo/Makefile
@@ -219,25 +251,15 @@ AC_OUTPUT([
 ])
 
 # Print a small summary
-
-echo ""
-echo "libva - ${LIBVA_VERSION} (VA-API ${VA_API_VERSION})"
-echo ""
-
-echo " • Global :"
-echo "     Prefix: ${prefix}"
-echo ""
-
-AS_IF([test x$enable_dummy_driver = xyes], [DRIVERS="dummy $DRIVERS"])
-
-echo " • Drivers: ${DRIVERS}"
-
 AS_IF([test x$USE_GLX = xyes], [BACKENDS="glx $BACKENDS"])
 AS_IF([test x$USE_EGL = xyes], [BACKENDS="egl $BACKENDS"])
 
-BACKENDS="x11 $BACKENDS"
-AS_IF([test x$enable_dummy_backend = xyes], [BACKENDS="dummy 
-$BACKENDS"])
-
-echo " • Winsys : ${BACKENDS}"
-
+echo
+echo "libva - ${LIBVA_VERSION} (VA-API ${VA_API_VERSION})"
+echo
+echo Installation prefix .............. : $prefix
+echo Default driver path .............. : $LIBVA_DRIVERS_PATH
+echo Extra window systems ............. : $BACKENDS
+echo Build dummy driver ............... : $enable_dummy_driver
+echo Build documentation .............. : $enable_docs
+echo

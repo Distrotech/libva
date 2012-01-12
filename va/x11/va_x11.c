@@ -29,7 +29,6 @@
 #include "va_trace.h"
 #include "va_fool.h"
 #include "va_x11.h"
-#include "va_dri.h"
 #include "va_dri2.h"
 #include "va_dricommon.h"
 #include "va_nvctrl.h"
@@ -82,19 +81,6 @@ static VAStatus va_DRI2GetDriverName (
     VADriverContextP ctx = pDisplayContext->pDriverContext;
 
     if (!isDRI2Connected(ctx, driver_name))
-        return VA_STATUS_ERROR_UNKNOWN;
-
-    return VA_STATUS_SUCCESS;
-}
-
-static VAStatus va_DRIGetDriverName (
-    VADisplayContextP pDisplayContext,
-    char **driver_name
-)
-{
-    VADriverContextP ctx = pDisplayContext->pDriverContext;
-
-    if (!isDRI1Connected(ctx, driver_name))
         return VA_STATUS_ERROR_UNKNOWN;
 
     return VA_STATUS_SUCCESS;
@@ -153,17 +139,56 @@ static VAStatus va_DisplayContextGetDriverName (
 
     vaStatus = va_DRI2GetDriverName(pDisplayContext, driver_name);
     if (vaStatus != VA_STATUS_SUCCESS)
-        vaStatus = va_DRIGetDriverName(pDisplayContext, driver_name);
-    if (vaStatus != VA_STATUS_SUCCESS)
         vaStatus = va_NVCTRL_GetDriverName(pDisplayContext, driver_name);
     if (vaStatus != VA_STATUS_SUCCESS)
         vaStatus = va_FGLRX_GetDriverName(pDisplayContext, driver_name);
     return vaStatus;
 }
 
+static VAStatus va_CreateNativePixmap(
+    VADisplayContextP pDisplayContext,
+    unsigned int width,
+    unsigned int height,
+    void **native_pixmap)
+{
+    VADriverContextP ctx = pDisplayContext->pDriverContext;
+    Window root_window;
+    XWindowAttributes wattr;
+    Pixmap pixmap = None;
+
+    root_window = RootWindow(ctx->native_dpy, ctx->x11_screen);
+    XGetWindowAttributes(ctx->native_dpy, root_window, &wattr);
+
+    if (wattr.depth != 24 && wattr.depth != 32)
+        return VA_STATUS_ERROR_INVALID_DISPLAY;
+
+    pixmap = XCreatePixmap(
+        ctx->native_dpy,
+        root_window,
+        width,
+        height,
+        wattr.depth
+    );
+
+    *native_pixmap = (void *)pixmap;
+
+    return !pixmap ? VA_STATUS_ERROR_UNKNOWN : VA_STATUS_SUCCESS;
+}
+
+static VAStatus va_FreeNativePixmap(
+    VADisplayContextP pDisplayContext,
+    void *native_pixmap)
+{
+    VADriverContextP ctx = pDisplayContext->pDriverContext;
+    Pixmap pixmap = (Pixmap)native_pixmap;
+
+    XFreePixmap(ctx->native_dpy, pixmap);
+
+    return VA_STATUS_SUCCESS;
+}
 
 VADisplay vaGetDisplay (
-    Display *native_dpy /* implementation specific */
+    VANativeDisplay native_dpy /* implementation specific */
 )
 {
   VADisplay dpy = NULL;
@@ -190,6 +215,8 @@ VADisplay vaGetDisplay (
 	  pDisplayContext->vaDestroy       = va_DisplayContextDestroy;
 	  pDisplayContext->vaGetDriverName = va_DisplayContextGetDriverName;
           pDisplayContext->opaque          = NULL;
+          pDisplayContext->vaCreateNativePixmap = va_CreateNativePixmap;
+          pDisplayContext->vaFreeNativePixmap   = va_FreeNativePixmap;
 	  pDriverContext->dri_state 	   = dri_state;
 	  dpy                              = (VADisplay)pDisplayContext;
       }
