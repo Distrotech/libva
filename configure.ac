@@ -225,29 +225,29 @@ AC_SUBST([libvacorelib])
 AC_SUBST([libvabackendlib])
 
 AC_OUTPUT([
-	Makefile
-	debian.upstream/Makefile
-	va/Makefile
-	va/va_version.h
-	va/x11/Makefile
-	va/glx/Makefile
-	va/egl/Makefile
-	va/dummy/Makefile
-	dummy_drv_video/Makefile
-	test/Makefile
-	test/basic/Makefile
-	test/decode/Makefile
-        test/egl/Makefile
-	test/putsurface/Makefile
-	test/encode/Makefile
-	test/vainfo/Makefile
-	test/transcode/Makefile
-	pkgconfig/libva-egl.pc
-	pkgconfig/libva-glx.pc
-	pkgconfig/libva-tpi.pc
-	pkgconfig/libva-x11.pc
-	pkgconfig/libva.pc
-        pkgconfig/Makefile
+    Makefile
+    debian.upstream/Makefile
+    doc/Makefile
+    dummy_drv_video/Makefile
+    pkgconfig/Makefile
+    pkgconfig/libva-egl.pc
+    pkgconfig/libva-glx.pc
+    pkgconfig/libva-tpi.pc
+    pkgconfig/libva-x11.pc
+    pkgconfig/libva.pc
+    test/Makefile
+    test/basic/Makefile
+    test/decode/Makefile
+    test/egl/Makefile
+    test/encode/Makefile
+    test/putsurface/Makefile
+    test/vainfo/Makefile
+    va/Makefile
+    va/dummy/Makefile
+    va/egl/Makefile
+    va/glx/Makefile
+    va/va_version.h
+    va/x11/Makefile
 ])
 
 # Print a small summary
