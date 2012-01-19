@@ -96,19 +96,19 @@ static VAPictureParameterBufferJPEG pic_param={
  num_components:3,
  components: {
         {
-        component_id:VA_JPEG_COMPONENT_ID_Y,
+        component_id:1,
         h_sampling_factor:2,
         v_sampling_factor:2,
         quantiser_table_selector:0,
         },
         {
-        component_id:VA_JPEG_COMPONENT_ID_U,
+        component_id:2,
         h_sampling_factor:1,
         v_sampling_factor:1,
         quantiser_table_selector:1,
         },
         {
-        component_id:VA_JPEG_COMPONENT_ID_V,
+        component_id:3,
         h_sampling_factor:1,
         v_sampling_factor:1,
         quantiser_table_selector:1,
@@ -167,17 +167,17 @@ static VASliceParameterBufferJPEG slice_param={
  num_components:3,
  components: {
         {
-        component_id:VA_JPEG_COMPONENT_ID_Y,
+        component_id:1,
         dc_selector:0,
         ac_selector:0,
         },
         {
-        component_id:VA_JPEG_COMPONENT_ID_U,
+        component_id:2,
         dc_selector:1,
         ac_selector:1,
         },
         {
-        component_id:VA_JPEG_COMPONENT_ID_V,
+        component_id:3,
         dc_selector:1,
         ac_selector:1,
         },
