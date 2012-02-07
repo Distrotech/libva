@@ -20,7 +20,7 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-bin_PROGRAMS = mpeg2vldemo jpegdecode
+bin_PROGRAMS = mpeg2vldemo jpegdecode loadjpeg
 
 INCLUDES = -I$(top_srcdir)
 
@@ -31,6 +31,9 @@ mpeg2vldemo_SOURCES = mpeg2vldemo.cpp
 
 jpegdecode_LDADD = $(TEST_LIBS)
 jpegdecode_SOURCES = jpegdecode.cpp
+
+loadjpeg_LDADD = $(TEST_LIBS)
+loadjpeg_SOURCES = loadjpeg.c tinyjpeg.c
 
 valgrind:	$(bin_PROGRAMS)
 	for a in $(bin_PROGRAMS); do \
