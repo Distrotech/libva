@@ -91,6 +91,7 @@ const char *profile2string(VAProfile profile)
 {
     switch(profile)
     {
+        PROFILE(None)
         PROFILE(MPEG2Simple)
         PROFILE(MPEG2Main)
         PROFILE(MPEG4Simple)
@@ -105,6 +106,7 @@ const char *profile2string(VAProfile profile)
         PROFILE(VC1Main)
         PROFILE(VC1Advanced)
         PROFILE(JPEGBaseline)
+        PROFILE(VP8Version0_3)
     }
     ASSERT(0);
     return "Unknown";
@@ -123,6 +125,7 @@ const char *entrypoint2string(VAEntrypoint entrypoint)
         ENTRYPOINT(Deblocking)
         ENTRYPOINT(EncSlice)
         ENTRYPOINT(EncPicture)
+        ENTRYPOINT(VideoProc)
     }
     ASSERT(0);
     return "Unknown";
